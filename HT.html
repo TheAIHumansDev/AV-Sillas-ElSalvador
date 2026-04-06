@@ -460,7 +460,7 @@
         const userDataStr = sessionStorage.getItem('user');
         if (!userDataStr) {
             alert('Sesión no encontrada. Por favor inicie sesión.');
-            window.location.href = 'LT.html';
+            window.location.href = 'index.html';
         } else {
             try {
                 currentUser = JSON.parse(userDataStr);
@@ -468,7 +468,7 @@
                 loadReports();
                 setInterval(() => loadReports(false), REFRESH_INTERVAL);
             } catch(e) {
-                window.location.href = 'LT.html';
+                window.location.href = 'index.html';
             }
         }
 
@@ -761,7 +761,7 @@
         function logout() {
             if (confirm('¿Cerrar sesión?')) {
                 sessionStorage.clear();
-                window.location.href = 'LT.html';
+                window.location.href = 'index.html';
             }
         }
 
