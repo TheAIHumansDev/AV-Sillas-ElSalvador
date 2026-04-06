@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Silla de Ruedas</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        :root {
+            --pink:    #ec4899;
+            --purple:  #a855f7;
+            --green:   #10b981;
+            --green2:  #059669;
+            --gold:    #f59e0b;
+            --gold2:   #fbbf24;
+            --red:     #ef4444;
+            --bg:      #0a0e27;
+            --surface: rgba(15, 23, 42, 0.85);
+            --border:  rgba(236, 72, 153, 0.22);
+            --text:    #e2e8f0;
+            --muted:   #64748b;
+            --card-bg: rgba(13, 20, 50, 0.9);
+        }
+
+        body {
+            font-family: 'Syne', sans-serif;
+            background: var(--bg);
+            min-height: 100vh; min-height: 100dvh;
+            color: var(--text);
+            overflow-x: hidden;
+        }
+
+        #canvas-container {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; z-index: 1;
+            pointer-events: none;
+        }
+
+        .app-shell {
+            position: relative; z-index: 2;
+            min-height: 100vh; min-height: 100dvh;
+            display: flex; flex-direction: column;
+            max-width: 480px; margin: 0 auto;
+        }
+
+        /* ─── HEADER ─── */
+        .app-header {
+            background: rgba(10, 14, 39, 0.92);
+            backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 16px 0;
+            position: sticky; top: 0; z-index: 20; flex-shrink: 0;
+        }
+
+        .header-row {
+            display: flex; align-items: center;
+            justify-content: space-between; gap: 8px; margin-bottom: 10px;
+        }
+
+        .header-brand { display: flex; align-items: center; gap: 9px; }
+        .brand-icon {
+            width: 32px; height: 32px; border-radius: 9px;
+            background: linear-gradient(135deg, var(--pink), var(--purple));
+            display: flex; align-items: center; justify-content: center; font-size: 16px;
+        }
+        .brand-text {
+            font-size: 15px; font-weight: 800;
+            background: linear-gradient(135deg, var(--pink), var(--purple));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .brand-sub { font-size: 9px; color: var(--muted); font-family: 'JetBrains Mono', monospace; letter-spacing: 2px; text-transform: uppercase; }
+
+        .header-actions { display: flex; align-items: center; gap: 6px; }
+        .user-chip {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(236,72,153,0.08); border: 1px solid var(--border);
+            border-radius: 20px; padding: 4px 10px 4px 4px;
+        }
+        .user-chip .av {
+            width: 22px; height: 22px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--pink), var(--purple));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 9px; font-weight: 700; color: #fff; flex-shrink: 0;
+        }
+        .user-chip .un { font-size: 11px; font-weight: 600; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .btn-small {
+            border-radius: 8px; padding: 5px 10px;
+            font-size: 11px; font-weight: 600; cursor: pointer;
+            font-family: 'Syne', sans-serif; white-space: nowrap; transition: background 0.2s;
+            border: 1px solid;
+        }
+        .btn-hist { background: rgba(168,85,247,0.12); border-color: rgba(168,85,247,0.35); color: #c4b5fd; }
+        .btn-hist:hover { background: rgba(168,85,247,0.25); }
+        .btn-logout { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: #fca5a5; }
+        .btn-logout:hover { background: rgba(239,68,68,0.25); }
+
+        /* PROGRESS BAR */
+        .progress-wrap { height: 3px; background: rgba(236,72,153,0.12); overflow: hidden; }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--pink), var(--purple));
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 0%;
+        }
+        .step-counter {
+            text-align: center; color: var(--muted);
+            font-size: 10px; font-family: 'JetBrains Mono', monospace;
+            padding: 6px 0 8px; letter-spacing: 1px;
+        }
+
+        /* RESUME BANNER */
+        .resume-banner {
+            background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.35);
+            border-radius: 10px; padding: 9px 14px; margin: 10px 16px 0;
+            display: none; align-items: center; gap: 8px; font-size: 12px;
+        }
+        .resume-banner.show { display: flex; animation: fadeIn .3s ease; }
+        .resume-badge {
+            background: var(--green); color: #fff; border-radius: 5px;
+            padding: 2px 7px; font-size: 9px; font-weight: 700;
+            font-family: 'JetBrains Mono', monospace; flex-shrink: 0; letter-spacing: 1px;
+        }
+
+        /* ─── MAIN CONTENT ─── */
+        .app-content {
+            flex: 1; overflow-y: auto; overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            padding: 18px 16px 48px;
+        }
+        .app-content::-webkit-scrollbar { width: 3px; }
+        .app-content::-webkit-scrollbar-thumb { background: rgba(236,72,153,0.3); border-radius: 2px; }
+
+        /* ─── CARDS ─── */
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.45), 0 0 60px rgba(236,72,153,0.04);
+            overflow: hidden;
+        }
+
+        .section-block { margin-bottom: 14px; }
+
+        /* FLIGHT INFO CARD */
+        .flight-card { padding: 22px 20px; }
+        .card-title {
+            font-size: 18px; font-weight: 800; color: #fff;
+            margin-bottom: 6px; display: flex; align-items: center; gap: 8px;
+        }
+        .card-subtitle { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label {
+            display: block; color: #cbd5e1; font-size: 12px;
+            font-weight: 600; margin-bottom: 6px; letter-spacing: 0.3px;
+        }
+        .input-field {
+            width: 100%; padding: 12px 15px;
+            background: rgba(30,41,59,0.55);
+            border: 1px solid rgba(236,72,153,0.2);
+            border-radius: 11px; color: #fff;
+            font-size: 14px; outline: none;
+            transition: all 0.25s; font-family: 'Syne', sans-serif;
+        }
+        .input-field:focus {
+            border-color: var(--pink);
+            background: rgba(30,41,59,0.88);
+            box-shadow: 0 0 0 3px rgba(236,72,153,0.1);
+        }
+        .input-field::placeholder { color: #475569; }
+        select.input-field { cursor: pointer; }
+        select.input-field option { background: #1e293b; color: #fff; }
+
+        .btn-primary {
+            width: 100%; padding: 14px;
+            background: linear-gradient(135deg, var(--pink), var(--purple));
+            border: none; border-radius: 12px; color: #fff;
+            font-size: 14px; font-weight: 700; cursor: pointer;
+            font-family: 'Syne', sans-serif; transition: all 0.25s; margin-top: 4px;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(236,72,153,0.4); }
+        .btn-primary:active { opacity: 0.85; transform: none; }
+        .btn-primary:disabled { opacity: 0.5; pointer-events: none; }
+
+        /* ─── FLIGHT INFO CHIP (shown after step 0) ─── */
+        .flight-info-chip {
+            display: none;
+            background: rgba(30,41,59,0.6); border: 1px solid rgba(236,72,153,0.2);
+            border-radius: 12px; padding: 11px 15px;
+            margin-bottom: 14px;
+            align-items: center; gap: 12px;
+        }
+        .flight-info-chip.show { display: flex; }
+        .fic-icon { font-size: 22px; flex-shrink: 0; }
+        .fic-body { flex: 1; min-width: 0; }
+        .fic-top { font-size: 14px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .fic-bot { font-size: 10px; color: var(--muted); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+        .fic-badge {
+            font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace; flex-shrink: 0; letter-spacing: 0.5px;
+        }
+        .fic-badge.sala { background: rgba(59,130,246,0.2); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3); }
+        .fic-badge.abordaje { background: rgba(16,185,129,0.2); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); }
+        .fic-badge.desabordaje { background: rgba(245,158,11,0.2); color: #fcd34d; border: 1px solid rgba(245,158,11,0.3); }
+        .fic-badge.otro { background: rgba(168,85,247,0.2); color: #c4b5fd; border: 1px solid rgba(168,85,247,0.3); }
+
+        /* ─── CHECKPOINT TIMELINE CARD ─── */
+        .timeline-card {
+            padding: 20px 18px 22px;
+            display: none;
+        }
+        .timeline-card.show { display: block; }
+        .timeline-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .timeline-title { font-size: 15px; font-weight: 800; color: #fff; }
+        .timeline-prog {
+            font-size: 10px; font-family: 'JetBrains Mono', monospace;
+            color: var(--muted); display: flex; align-items: center; gap: 6px;
+        }
+        .prog-pill {
+            background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3);
+            border-radius: 10px; padding: 2px 8px;
+            font-size: 10px; color: var(--green); font-weight: 700;
+            transition: all 0.3s;
+        }
+
+        /* CHECKPOINT ITEM */
+        .checkpoint-wrapper { position: relative; }
+
+        .connector {
+            position: absolute; left: 19px; top: 48px;
+            width: 2px; height: calc(100% - 10px);
+            background: rgba(100,116,139,0.25);
+            border-radius: 1px; overflow: hidden;
+            transition: all 0.6s ease;
+            z-index: 0;
+        }
+        .connector.filled { background: rgba(100,116,139,0.15); }
+        .connector-fill {
+            position: absolute; top: 0; left: 0; width: 100%;
+            height: 0%; border-radius: 1px;
+            background: linear-gradient(180deg, var(--green), var(--green2));
+            transition: height 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .connector.active .connector-fill { height: 100%; }
+
+        .checkpoint-item {
+            display: flex; align-items: flex-start; gap: 14px;
+            padding: 10px 4px; position: relative; z-index: 1;
+            border-radius: 14px; transition: background 0.2s;
+            cursor: default;
+            -webkit-user-select: none; user-select: none;
+            overflow: hidden; /* for ripple */
+        }
+        .checkpoint-item.clickable { cursor: pointer; }
+        .checkpoint-item.clickable:active { background: rgba(245,158,11,0.06); }
+        .checkpoint-item.blocked { opacity: 0.38; cursor: not-allowed; }
+
+        /* CIRCLE INDICATOR */
+        .cp-circle {
+            width: 40px; height: 40px; border-radius: 50%;
+            flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+            font-size: 18px; position: relative; transition: all 0.45s ease;
+            background: rgba(30,41,59,0.7);
+            border: 2px solid rgba(100,116,139,0.3);
+        }
+
+        /* PENDING/BLOCKED state */
+        .cp-circle.state-pending {
+            background: rgba(30,41,59,0.5);
+            border-color: rgba(100,116,139,0.25);
+            filter: grayscale(0.6);
+        }
+
+        /* ACTIVE state — gold pulse */
+        .cp-circle.state-active {
+            background: rgba(245,158,11,0.15);
+            border-color: var(--gold);
+            box-shadow: 0 0 0 0 rgba(245,158,11,0.5);
+            animation: goldPulse 2s ease-in-out infinite;
+        }
+        @keyframes goldPulse {
+            0%   { box-shadow: 0 0 0 0 rgba(245,158,11,0.55); }
+            50%  { box-shadow: 0 0 0 10px rgba(245,158,11,0); }
+            100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+        }
+
+        /* DONE state */
+        .cp-circle.state-done {
+            background: rgba(16,185,129,0.18);
+            border-color: var(--green);
+            box-shadow: 0 0 14px rgba(16,185,129,0.25);
+            animation: none;
+        }
+
+        /* DONE bounce animation (triggered once) */
+        .cp-circle.bounce-in {
+            animation: bounceCheck 0.55s cubic-bezier(0.36, 0.07, 0.19, 0.97) both !important;
+        }
+        @keyframes bounceCheck {
+            0%   { transform: scale(1); }
+            25%  { transform: scale(1.35); }
+            50%  { transform: scale(0.88); }
+            75%  { transform: scale(1.12); }
+            100% { transform: scale(1); }
+        }
+
+        .cp-icon { transition: opacity 0.3s; font-size: 18px; }
+        .cp-check {
+            position: absolute; font-size: 18px;
+            opacity: 0; transform: scale(0.5);
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .cp-circle.state-done .cp-icon { opacity: 0; }
+        .cp-circle.state-done .cp-check { opacity: 1; transform: scale(1); }
+
+        /* TEXT BLOCK */
+        .cp-body { flex: 1; min-width: 0; padding-top: 9px; }
+        .cp-name { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+        .cp-desc { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+        .cp-time {
+            font-size: 11px; color: var(--green);
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 3px; font-weight: 600;
+            opacity: 0; max-height: 0; overflow: hidden;
+            transition: all 0.4s ease;
+        }
+        .cp-time.show { opacity: 1; max-height: 20px; }
+
+        /* RIGHT STATUS */
+        .cp-status { display: flex; align-items: center; padding-top: 10px; flex-shrink: 0; }
+        .tap-label {
+            display: flex; align-items: center; gap: 5px;
+            font-size: 11px; font-weight: 700; color: var(--gold);
+            font-family: 'JetBrains Mono', monospace; letter-spacing: 1px;
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .tap-label.show { opacity: 1; animation: tapPulse 1.8s ease-in-out infinite; }
+        @keyframes tapPulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.45; }
+        }
+        .tap-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); animation: blink 1.2s ease-in-out infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+        .done-check {
+            font-size: 18px; color: var(--green);
+            opacity: 0; transform: scale(0);
+            transition: all 0.4s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .done-check.show { opacity: 1; transform: scale(1); }
+
+        /* RIPPLE */
+        .ripple-effect {
+            position: absolute; border-radius: 50%;
+            background: rgba(245,158,11,0.25);
+            pointer-events: none; transform: scale(0);
+            animation: rippleAnim 0.65s linear;
+        }
+        @keyframes rippleAnim {
+            to { transform: scale(4.5); opacity: 0; }
+        }
+
+        /* ─── INCIDENT SECTION ─── */
+        .incident-card {
+            padding: 20px 18px; display: none;
+        }
+        .incident-card.show { display: block; }
+        textarea.input-field { resize: vertical; min-height: 85px; }
+        .photo-zone {
+            width: 100%; padding: 28px 16px;
+            background: rgba(30,41,59,0.45);
+            border: 1.5px dashed rgba(236,72,153,0.28);
+            border-radius: 12px; cursor: pointer;
+            text-align: center; transition: all 0.25s; display: block;
+        }
+        .photo-zone:hover { border-color: var(--pink); background: rgba(236,72,153,0.07); }
+        .photo-zone input { display: none; }
+        .photo-zone .up-icon { font-size: 30px; margin-bottom: 6px; }
+        .photo-zone .up-text { font-size: 12px; font-weight: 600; color: #94a3b8; }
+        .photo-preview-wrap { margin-top: 10px; border-radius: 10px; overflow: hidden; display: none; }
+        .photo-preview-wrap img { width: 100%; display: block; }
+
+        /* ─── RETURN CARD ─── */
+        .return-card { padding: 20px 18px; display: none; }
+        .return-card.show { display: block; }
+
+        /* Return checkpoint — single big one */
+        .return-checkpoint {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 12px; border-radius: 14px;
+            cursor: pointer; transition: background 0.2s;
+            border: 1px solid rgba(236,72,153,0.15);
+            background: rgba(30,41,59,0.35);
+            overflow: hidden; position: relative;
+        }
+        .return-checkpoint:active { background: rgba(16,185,129,0.07); }
+        .return-checkpoint.done { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.06); cursor: default; }
+        .return-cp-circle {
+            width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; font-size: 18px;
+            background: rgba(245,158,11,0.12); border: 2px solid var(--gold);
+            animation: goldPulse 2s ease-in-out infinite; position: relative;
+        }
+        .return-cp-circle.done-state {
+            background: rgba(16,185,129,0.18); border-color: var(--green);
+            box-shadow: 0 0 14px rgba(16,185,129,0.25); animation: none;
+        }
+
+        /* QR SCREEN */
+        .qr-card {
+            padding: 24px 18px; display: none; text-align: center;
+        }
+        .qr-card.show { display: block; }
+        .qr-title { font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 6px; }
+        .qr-sub { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+        .qr-wrap {
+            background: white; border-radius: 16px;
+            padding: 16px; max-width: 220px; margin: 0 auto 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4), 0 0 50px rgba(236,72,153,0.12);
+            animation: qrGlow 2.5s ease-in-out infinite;
+        }
+        @keyframes qrGlow {
+            0%,100% { box-shadow: 0 10px 40px rgba(0,0,0,0.4), 0 0 30px rgba(236,72,153,0.12); }
+            50%      { box-shadow: 0 10px 40px rgba(0,0,0,0.4), 0 0 60px rgba(236,72,153,0.4); }
+        }
+        .qr-wrap img { width: 100%; display: block; border-radius: 8px; }
+
+        /* SERVICE METRICS */
+        .metrics-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px;
+        }
+        .metric-box {
+            background: rgba(30,41,59,0.5); border-radius: 10px; padding: 10px 12px;
+            border: 1px solid rgba(236,72,153,0.12);
+        }
+        .metric-label { font-size: 9px; color: var(--muted); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+        .metric-val { font-size: 13px; font-weight: 700; color: #fff; }
+        .metric-val.green { color: var(--green); }
+        .metric-val.gold { color: var(--gold2); }
+
+        .btn-secondary {
+            width: 100%; padding: 13px;
+            background: rgba(71,85,105,0.25); color: #cbd5e1;
+            border: 1px solid rgba(71,85,105,0.4);
+            border-radius: 12px; font-size: 13px; font-weight: 600;
+            cursor: pointer; font-family: 'Syne', sans-serif; margin-top: 8px; transition: background 0.2s;
+        }
+        .btn-secondary:hover { background: rgba(71,85,105,0.4); }
+
+        /* ─── COMPLETION SCREEN ─── */
+        .completion-screen { display: none; text-align: center; padding: 20px 0; }
+        .completion-screen.show { display: block; animation: fadeUp .45s ease; }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+
+        .comp-icon { font-size: 58px; margin-bottom: 14px; animation: bounce .7s ease; }
+        @keyframes bounce { 0%,100%{transform:translateY(0)} 40%{transform:translateY(-18px)} 65%{transform:translateY(-8px)} }
+        .comp-title { font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 6px; }
+        .comp-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+
+        .summary-glass {
+            background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 16px; padding: 16px; margin-bottom: 10px;
+            backdrop-filter: blur(16px); text-align: left;
+        }
+        .sum-head { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); font-family: 'JetBrains Mono', monospace; margin-bottom: 12px; }
+        .sum-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 7px 0; border-bottom: 1px solid rgba(236,72,153,0.07); gap: 10px; }
+        .sum-row:last-child { border-bottom: none; }
+        .sum-label { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+        .sum-val { font-size: 12px; font-weight: 600; text-align: right; }
+
+        /* ─── OVERLAYS ─── */
+        .sending-overlay {
+            position: fixed; inset: 0;
+            background: rgba(10,14,39,0.85); backdrop-filter: blur(8px);
+            z-index: 500; display: none; flex-direction: column;
+            align-items: center; justify-content: center; gap: 14px;
+        }
+        .sending-overlay.show { display: flex; }
+        .send-spinner {
+            width: 40px; height: 40px; border: 3px solid rgba(236,72,153,0.2);
+            border-top-color: var(--pink); border-radius: 50%;
+            animation: spin .8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .send-label { color: #cbd5e1; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+
+        /* TOAST */
+        .toast {
+            position: fixed; bottom: 20px; left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: rgba(16,185,129,0.92); backdrop-filter: blur(10px);
+            color: #fff; padding: 10px 20px; border-radius: 22px;
+            font-size: 12px; font-weight: 600; z-index: 999; opacity: 0;
+            transition: all 0.3s ease; font-family: 'JetBrains Mono', monospace;
+            white-space: nowrap; pointer-events: none;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .toast.error { background: rgba(239,68,68,0.92); }
+        .toast.gold  { background: rgba(245,158,11,0.92); }
+
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    </style>
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-1PYNBFGPML"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-1PYNBFGPML');
+    </script>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div class="sending-overlay" id="sendingOverlay">
+        <div class="send-spinner"></div>
+        <div class="send-label" id="sendLabel">Guardando…</div>
+    </div>
+
+    <div class="app-shell">
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="header-row">
+                <div class="header-brand">
+                    <div class="brand-icon">♿</div>
+                    <div>
+                        <div class="brand-text">Reporte de Silla</div>
+                        <div class="brand-sub">Wheelchair Services</div>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <div class="user-chip">
+                        <div class="av" id="avatarInitial">?</div>
+                        <div class="un" id="usernameDisplay">…</div>
+                    </div>
+                    <button class="btn-small btn-hist" onclick="goToHistory()">📋</button>
+                    <button class="btn-small btn-logout" onclick="logout()">Salir</button>
+                </div>
+            </div>
+            <div class="progress-wrap"><div class="progress-fill" id="progressBar"></div></div>
+            <div class="step-counter" id="stepCounter">INFORMACIÓN DE VUELO</div>
+        </header>
+
+        <div class="resume-banner" id="resumeBanner">
+            <span class="resume-badge">▶ RETOMANDO</span>
+            <span id="resumeBannerText">Cargando datos…</span>
+        </div>
+
+        <div class="app-content">
+
+            <!-- ═══ FLIGHT INFO ═══ -->
+            <div class="section-block" id="sectionFlight">
+                <div class="glass-card">
+                    <div class="flight-card" id="flightForm">
+                        <div class="card-title">✈️ Información de Vuelo</div>
+                        <div class="card-subtitle">Seleccione tipo de servicio, aerolínea y número de vuelo</div>
+                        <div class="form-group">
+                            <label>Tipo de Servicio</label>
+                            <select id="airlineType" class="input-field">
+                                <option value="">-- Seleccione tipo --</option>
+                                <option value="asistencia-sala">Asistencia a Sala</option>
+                                <option value="Desabordaje">Desabordaje</option>
+                                <option value="Abordaje">Abordaje</option>
+                                <option value="otro">Otro</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Aerolínea</label>
+                            <select id="airlineSelect" class="input-field">
+                                <option value="">-- Seleccione aerolínea --</option>
+                                <option value="AV">Avianca</option>
+                                <option value="B6">Jetblue</option>
+                                <option value="DL">Delta</option>
+                                <option value="AC">Air Canada</option>
+                                <option value="UA">United</option>
+                                <option value="E9">Iberojet</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label># de Vuelo</label>
+                            <input type="text" id="flightNumber" class="input-field" placeholder="Ej: 1234">
+                        </div>
+                        <button class="btn-primary" id="flightBtn" onclick="submitFlightInfo()">Continuar →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FLIGHT CHIP (shown after flight confirmed) -->
+            <div class="flight-info-chip" id="flightChip">
+                <div class="fic-icon">✈️</div>
+                <div class="fic-body">
+                    <div class="fic-top" id="ficTop">—</div>
+                    <div class="fic-bot" id="ficBot">—</div>
+                </div>
+                <div class="fic-badge" id="ficBadge">—</div>
+            </div>
+
+            <!-- ═══ CHECKPOINT TIMELINE ═══ -->
+            <div class="section-block" id="sectionTimeline">
+                <div class="glass-card">
+                    <div class="timeline-card" id="timelineCard">
+                        <div class="timeline-header">
+                            <div class="timeline-title">♿ Progreso del Servicio</div>
+                            <div class="timeline-prog">
+                                <span id="progLabel">0 / 3</span>
+                                <span class="prog-pill" id="progPill">PENDIENTE</span>
+                            </div>
+                        </div>
+
+                        <!-- CHECKPOINT 1: SILLA ASIGNADA -->
+                        <div class="checkpoint-wrapper" id="cpWrapper1">
+                            <div class="checkpoint-item" id="cpItem1" onclick="handleCheckpointTap(1)">
+                                <div class="cp-circle state-pending" id="cpCircle1">
+                                    <span class="cp-icon">🦽</span>
+                                    <span class="cp-check">✓</span>
+                                </div>
+                                <div class="cp-body">
+                                    <div class="cp-name">Silla Asignada</div>
+                                    <div class="cp-desc">Silla entregada al pasajero</div>
+                                    <div class="cp-time" id="cpTime1"></div>
+                                </div>
+                                <div class="cp-status">
+                                    <div class="tap-label" id="tapLabel1"><div class="tap-dot"></div>TAP</div>
+                                    <div class="done-check" id="doneCheck1">✓</div>
+                                </div>
+                            </div>
+                            <!-- Connector 1→2 -->
+                            <div class="connector" id="connector1">
+                                <div class="connector-fill" id="connFill1"></div>
+                            </div>
+                        </div>
+
+                        <!-- CHECKPOINT 2: INICIO DE SERVICIO -->
+                        <div class="checkpoint-wrapper" id="cpWrapper2">
+                            <div class="checkpoint-item blocked" id="cpItem2" onclick="handleCheckpointTap(2)">
+                                <div class="cp-circle state-pending" id="cpCircle2">
+                                    <span class="cp-icon">👤</span>
+                                    <span class="cp-check">✓</span>
+                                </div>
+                                <div class="cp-body">
+                                    <div class="cp-name">Inicio de Servicio</div>
+                                    <div class="cp-desc">Pasajero recogido</div>
+                                    <div class="cp-time" id="cpTime2"></div>
+                                </div>
+                                <div class="cp-status">
+                                    <div class="tap-label" id="tapLabel2"><div class="tap-dot"></div>TAP</div>
+                                    <div class="done-check" id="doneCheck2">✓</div>
+                                </div>
+                            </div>
+                            <!-- Connector 2→3 -->
+                            <div class="connector" id="connector2">
+                                <div class="connector-fill" id="connFill2"></div>
+                            </div>
+                        </div>
+
+                        <!-- CHECKPOINT 3: FINALIZACIÓN -->
+                        <div class="checkpoint-wrapper" id="cpWrapper3">
+                            <div class="checkpoint-item blocked" id="cpItem3" onclick="handleCheckpointTap(3)">
+                                <div class="cp-circle state-pending" id="cpCircle3">
+                                    <span class="cp-icon">🏁</span>
+                                    <span class="cp-check">✓</span>
+                                </div>
+                                <div class="cp-body">
+                                    <div class="cp-name">Finalización de Servicio</div>
+                                    <div class="cp-desc">Pasajero entregado en destino</div>
+                                    <div class="cp-time" id="cpTime3"></div>
+                                </div>
+                                <div class="cp-status">
+                                    <div class="tap-label" id="tapLabel3"><div class="tap-dot"></div>TAP</div>
+                                    <div class="done-check" id="doneCheck3">✓</div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div><!-- /timeline-card -->
+                </div>
+            </div>
+
+            <!-- ═══ QR FEEDBACK ═══ -->
+            <div class="section-block" id="sectionQR">
+                <div class="glass-card">
+                    <div class="qr-card" id="qrCard">
+                        <div style="font-size:44px;margin-bottom:10px;">🎉</div>
+                        <div class="qr-title">¡Servicio Completado!</div>
+                        <div class="qr-sub">Muestre este QR al pasajero para su feedback</div>
+
+                        <div class="qr-wrap">
+                            <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/wAARCAGaAZoDASIAAhEBAxEB/8QAGQABAQEBAQEAAAAAAAAAAAAAAAkHCAYF/8QARBAAAAEHBgoGCgICAgMAAAAAAAECAwQGBxEFCBITFBUWGCExOFaEpbTTFyIkQVGFCSYyM0VHYWfE5CNjJyg0RGJmk//EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwDssAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZwFmAEZwAWYARnABZgBGcAFmAEZxs0yXSdZHbeCTgKZAAjOAswAxmZLoxMjtvGpxswAAAAAAmbPa0nWu2LgkACmQDjP0ZfzB8t/KHZgAAAAAA4z9Jp8vvMvxQHZgCZsyXSdZHbeCTimQAACZs9rSda7YuCQAKZAOM/Rl/MHy38odmAAAAAADjP0mny+8y/FAdmAIzgAswAjOACzACM4ALMAIzgAswAxmZLoxMjtvGpxswAAAAAAAAAAAAAACM4swIzgO5prjhHTto4lnWmaZlLfKy5arQsXgtI6dBaSmG9UxIQ0kDTTSZCEzeI0zFccTqNvZd5wTJdGJkdt41OE5p+nQtg/6rX7fNp+IWapqar+s+lGt+kKPfHIDFccTqNvZd5wYrjidRt7LvOGM48/2u3/8Arhjz/a7f/wCuA2bFccTqNvZd5wYrjidRt7LvOGM48/2u3/8ArjplyTddJTsJIbW67qvGu7JaK6rq06RF7dE2MaEcxIRh9QHGc+d1rCO1wOwKkK6rxt1r7WnTVlXZ6HvTzoQpn5oRjl7h4yZLpOsjtvBJxs3pNPl95l+KMZmS6TrI7bwScBTIYziuOJ1G3su84bMOM8ef7Xb/AP1wHjH2vSbtyzz5Xdm7SXbiZORqmwKFkQLNTXIEadJ/InMPSHRSJUh3WOLClAkCEIQnjMaN+2vO6VLkjZugvGU/zXhTgrhH8Ku+22ez9l99WI6dKop+wSFKGWES4zOacX0LYP8ArTft82n4fZqmpqv7D6Ua36Qo98cgMaN+2vO6VLkhjRv2153SpckezfbOt6SnYSuxWAV1XjU9rveuq6tAkS+xUmxjQhnJCMfoA8ZjRv2153SpckezfbOt6SnYSuxWAV1XjU9rveuq6tAkS+xUmxjQhnJCMfoABjM9rRia7YuNQCZoswAjOKZTJdGJkdt41ONmGMzJdGJkdt41ONmAYzPa0Ymu2LjUAmaKZT2tGJrti41AJmgLMAIzimUyXRiZHbeNTgMZ9Jp8vvMvxRjMyXSdZHbeNTgMZ9Jp8vvMvxQHGYAAAKZTJdGJkdt41ONmGMzJdGJkdt41ONmAAAAAAAAAAAAAAACM4swIzgKZTJdGJkdt41ONmGMzJdGJkdt41ONmAAAAAAAAAAAAAAACM4swIzgKZTJdGJkdt41ONmGMzJdGJkdt41ONmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" alt="QR Code">
+                        </div>
+
+                        <div class="metrics-grid" id="metricsGrid">
+                            <div class="metric-box">
+                                <div class="metric-label">📅 Fecha</div>
+                                <div class="metric-val" id="mDate">—</div>
+                            </div>
+                            <div class="metric-box">
+                                <div class="metric-label">⏰ Inicio</div>
+                                <div class="metric-val" id="mStart">—</div>
+                            </div>
+                            <div class="metric-box">
+                                <div class="metric-label">🏁 Fin</div>
+                                <div class="metric-val" id="mEnd">—</div>
+                            </div>
+                            <div class="metric-box">
+                                <div class="metric-label">⚡ Duración</div>
+                                <div class="metric-val gold" id="mDuration">—</div>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary" onclick="proceedAfterQR()">Continuar Reporte →</button>
+                        <button class="btn-secondary" onclick="proceedAfterQR()">Omitir (pasajero no disponible)</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ INCIDENT ═══ -->
+            <div class="section-block" id="sectionIncident">
+                <div class="glass-card">
+                    <div class="incident-card" id="incidentCard">
+                        <div class="card-title">📝 Reporte de Incidente</div>
+                        <div class="card-subtitle">¿Hubo algún incidente durante el servicio? (Opcional)</div>
+                        <div class="form-group">
+                            <label>Descripción del Incidente</label>
+                            <textarea id="incidentDescription" class="input-field" placeholder="Describa el incidente (deje en blanco si no hubo ninguno)"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Foto de Evidencia (Opcional)</label>
+                            <label class="photo-zone">
+                                <div class="up-icon">📷</div>
+                                <div class="up-text">Agregar Foto · Click para seleccionar</div>
+                                <input type="file" id="incidentPhoto" accept="image/*" onchange="previewPhoto(this)">
+                            </label>
+                            <div class="photo-preview-wrap" id="photoPreview">
+                                <img id="previewImage" src="" alt="Vista previa">
+                            </div>
+                        </div>
+                        <button class="btn-primary" onclick="submitIncident()">Continuar →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ RETURN / RETORNO ═══ -->
+            <div class="section-block" id="sectionReturn">
+                <div class="glass-card">
+                    <div class="return-card" id="returnCard">
+                        <div class="card-title" style="margin-bottom:6px;">🔄 Retorno de Silla</div>
+                        <div class="card-subtitle" style="margin-bottom:16px;">Confirme cuando la silla de ruedas haya sido devuelta</div>
+
+                        <div class="return-checkpoint" id="returnCpItem" onclick="handleReturnTap()">
+                            <div class="return-cp-circle" id="returnCpCircle">
+                                <span id="returnCpIcon">🔄</span>
+                                <span id="returnCpCheck" style="position:absolute;font-size:18px;opacity:0;transform:scale(0.5);transition:all .35s cubic-bezier(0.34,1.56,0.64,1);">✓</span>
+                            </div>
+                            <div class="cp-body">
+                                <div class="cp-name">Retorno de Silla</div>
+                                <div class="cp-desc">Silla devuelta a su lugar</div>
+                                <div class="cp-time" id="returnCpTime"></div>
+                            </div>
+                            <div class="cp-status">
+                                <div class="tap-label show" id="returnTapLabel"><div class="tap-dot"></div>TAP</div>
+                                <div class="done-check" id="returnDoneCheck">✓</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ COMPLETION ═══ -->
+            <div class="completion-screen" id="completionScreen">
+                <div class="comp-icon">🎉</div>
+                <div class="comp-title">¡Reporte Completado!</div>
+                <div class="comp-sub">Servicio de silla registrado exitosamente</div>
+
+                <div class="summary-glass">
+                    <div class="sum-head">✈️ Vuelo</div>
+                    <div class="sum-row"><span class="sum-label">Reporte #</span><span class="sum-val" id="sumReporte">–</span></div>
+                    <div class="sum-row"><span class="sum-label">Vuelo</span><span class="sum-val" id="sumVuelo">–</span></div>
+                    <div class="sum-row"><span class="sum-label">Aerolínea</span><span class="sum-val" id="sumAerolinea">–</span></div>
+                    <div class="sum-row"><span class="sum-label">Tipo</span><span class="sum-val" id="sumTipo">–</span></div>
+                    <div class="sum-row"><span class="sum-label">Inspector</span><span class="sum-val" id="sumInspector">–</span></div>
+                </div>
+                <div class="summary-glass">
+                    <div class="sum-head">⏱ Tiempos</div>
+                    <div id="timeSummary"></div>
+                </div>
+                <div class="summary-glass" id="incidentSummaryCard" style="display:none;">
+                    <div class="sum-head" style="color:#fca5a5;">⚠️ Incidente</div>
+                    <div id="incidentSummaryContent"></div>
+                </div>
+
+                <button class="btn-primary" onclick="newReport()" style="margin-bottom:8px;">🔄 Nuevo Reporte</button>
+                <button class="btn-secondary" onclick="goToHistory()">📋 Ver Historial</button>
+                <button class="btn-secondary" onclick="logout()">🚪 Cerrar Sesión</button>
+            </div>
+
+        </div><!-- /app-content -->
+    </div><!-- /app-shell -->
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+    /* ═══════════════════════════════════════════
+       CONFIG & CONSTANTS
+    ═══════════════════════════════════════════ */
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxUBk_-yW99Fw-yExqrTtXZulen78EbWfHhs6iSG7GYZom-d7Aa16wLQy8QrgHp9c7Z/exec';
+    const AIRLINE_NAMES = { AV:'Avianca', B6:'Jetblue', DL:'Delta', AC:'Air Canada', UA:'United', E9:'Iberojet' };
+    const SVC_LABELS = { 'asistencia-sala':'Asistencia a Sala', 'Abordaje':'Abordaje', 'Desabordaje':'Desabordaje', 'otro':'Otro' };
+
+    /* ═══ STATE ═══ */
+    let currentUser = null;
+    let reportId = '', flightNum = '', serviceType = '', airlineCode = '';
+    let timestamps = {};            // { 1: ISO, 2: ISO, 3: ISO, 4: ISO, 5: ISO }
+    let checkpointProgress = 0;    // 0 = none done, 1 = cp1 done, 2 = cp2 done, 3 = all 3 done
+    let incidentText = '', incidentPhotoB64 = '';
+    let isResume = false, resumeRowId = null;
+    let returnDone = false;
+
+    /* ═══ AUTH ═══ */
+    (function checkAuth() {
+        const raw = sessionStorage.getItem('user');
+        if (!raw) { window.location.href = 'sillas.html'; return; }
+        try {
+            currentUser = JSON.parse(raw);
+            document.getElementById('usernameDisplay').textContent = currentUser.username;
+            document.getElementById('avatarInitial').textContent = (currentUser.username || '?').slice(0,2).toUpperCase();
+        } catch(e) { window.location.href = 'index.html'; }
+    })();
+
+    /* ═══ THREE.JS BACKGROUND ═══ */
+    (function initBG() {
+        const cntr = document.getElementById('canvas-container');
+        const sc = new THREE.Scene();
+        const cm = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+        const rd = new THREE.WebGLRenderer({ alpha:true, antialias:true });
+        rd.setSize(innerWidth, innerHeight);
+        cntr.appendChild(rd.domElement);
+        const geo = new THREE.BufferGeometry();
+        const N = 2200, pos = new Float32Array(N*3);
+        for(let i=0;i<N*3;i++) pos[i]=(Math.random()-.5)*100;
+        geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+        const mat = new THREE.PointsMaterial({size:.07,color:0xec4899,transparent:true,opacity:.55,blending:THREE.AdditiveBlending});
+        const pts = new THREE.Points(geo,mat);
+        sc.add(pts); cm.position.z=30;
+        (function a(){requestAnimationFrame(a); pts.rotation.y+=.0007; rd.render(sc,cm);})();
+        window.addEventListener('resize',()=>{ cm.aspect=innerWidth/innerHeight; cm.updateProjectionMatrix(); rd.setSize(innerWidth,innerHeight); });
+    })();
+
+    /* ═══ RESUME ═══ */
+    (function tryResume() {
+        const raw = sessionStorage.getItem('resumeSillaReport');
+        if (!raw) return;
+        sessionStorage.removeItem('resumeSillaReport');
+        let r; try { r = JSON.parse(raw); } catch(e) { return; }
+        isResume = true; resumeRowId = r.id || null;
+        airlineCode = r.aerolinea || ''; serviceType = r.tipoServicio || '';
+        reportId = r.numeroReporte || ('WCH-'+Date.now());
+        flightNum = r.vuelo || '';
+
+        trySetVal('airlineSelect', r.aerolinea||'');
+        trySetVal('flightNumber', r.vuelo||'');
+        const svcMap = {'asistencia-sala':'asistencia-sala','Abordaje':'Abordaje','Desabordaje':'Desabordaje','otro':'otro'};
+        const svcVal = r.tipoServicio||(r.asistenciaSala?'asistencia-sala':r.abordaje?'Abordaje':r.desabordaje?'Desabordaje':'otro');
+        trySetVal('airlineType', svcMap[svcVal]||'');
+
+        // Pre-fill timestamps
+        if(r.horaAsignacion) timestamps[1] = buildISO(r.fechaAsignacion, r.horaAsignacion);
+        if(r.horaInicioServicio) timestamps[2] = buildISO(r.fechaInicioServicio, r.horaInicioServicio);
+        if(r.horaFinServicio) timestamps[3] = buildISO(r.fechaFinServicio, r.horaFinServicio);
+
+        let resumeStep = 0;
+        if(timestamps[1]) { resumeStep = 1; checkpointProgress = 1; }
+        if(timestamps[2]) { resumeStep = 2; checkpointProgress = 2; }
+        if(timestamps[3]) { resumeStep = 3; checkpointProgress = 3; }
+
+        const banner = document.getElementById('resumeBanner'), txt = document.getElementById('resumeBannerText');
+        banner.classList.add('show');
+        txt.textContent = `${AIRLINE_NAMES[r.aerolinea]||r.aerolinea||'–'} · Vuelo ${r.vuelo||'–'} — continuando desde paso ${resumeStep+1}`;
+
+        // Show sections and render flight info
+        activateFlightSections();
+        renderTimeline();
+        if(resumeStep >= 3) { showQRSection(); }
+
+        updateProgress();
+    })();
+
+    function buildISO(dateStr, timeStr) {
+        if(!dateStr||!timeStr) return '';
+        try {
+            const p = String(dateStr).split('/');
+            if(p.length===3) {
+                const d = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
+                const t = String(timeStr).split(':');
+                d.setHours(parseInt(t[0]||0), parseInt(t[1]||0), parseInt(t[2]||0));
+                return d.toISOString();
+            }
+        } catch(e){}
+        return '';
+    }
+    function trySetVal(id, val) { const el=document.getElementById(id); if(el&&val) el.value=val; }
+
+    /* ═══════════════════════════════════════════
+       FLIGHT INFO SUBMIT
+    ═══════════════════════════════════════════ */
+    function submitFlightInfo() {
+        const type   = document.getElementById('airlineType').value;
+        const airline= document.getElementById('airlineSelect').value;
+        const flight = document.getElementById('flightNumber').value.trim();
+        if(!type)   { showToast('Seleccione el tipo de servicio', 'error'); return; }
+        if(!airline){ showToast('Seleccione una aerolínea', 'error'); return; }
+        if(!flight) { showToast('Ingrese el número de vuelo', 'error'); return; }
+
+        serviceType = type; airlineCode = airline; flightNum = flight;
+        if(!reportId) reportId = 'WCH-' + Date.now();
+        const ts = new Date().toISOString(); timestamps[0] = ts;
+
+        showSending('Guardando información de vuelo…');
+        sendToSheet(0, 'Vuelo: '+airline+' '+flight, ts, () => {
+            hideSending();
+            showToast('✓ Vuelo registrado');
+            activateFlightSections();
+            renderTimeline();
+            updateProgress();
+            scrollTo('sectionTimeline');
+        });
+    }
+
+    function activateFlightSections() {
+        // Show flight chip
+        const chip = document.getElementById('flightChip');
+        chip.classList.add('show');
+        document.getElementById('ficTop').textContent = (AIRLINE_NAMES[airlineCode]||airlineCode) + ' · Vuelo ' + flightNum;
+        document.getElementById('ficBot').textContent = reportId;
+        const badge = document.getElementById('ficBadge');
+        badge.textContent = (SVC_LABELS[serviceType]||serviceType||'–').toUpperCase();
+        const badgeClsMap = {'asistencia-sala':'sala','Abordaje':'abordaje','Desabordaje':'desabordaje','otro':'otro'};
+        badge.className = 'fic-badge ' + (badgeClsMap[serviceType]||'sala');
+
+        // Collapse flight form
+        document.getElementById('flightForm').style.display = 'none';
+        document.getElementById('sectionFlight').style.marginBottom = '0';
+
+        // Show timeline card
+        document.getElementById('timelineCard').classList.add('show');
+    }
+
+    /* ═══════════════════════════════════════════
+       CHECKPOINT RENDERING
+    ═══════════════════════════════════════════ */
+    function renderTimeline() {
+        for(let cp=1; cp<=3; cp++) {
+            const isDone   = cp <= checkpointProgress;
+            const isActive = cp === checkpointProgress + 1;
+            const isBlocked= cp >  checkpointProgress + 1;
+
+            const item   = document.getElementById('cpItem'+cp);
+            const circle = document.getElementById('cpCircle'+cp);
+            const tapLbl = document.getElementById('tapLabel'+cp);
+            const doneChk= document.getElementById('doneCheck'+cp);
+            const timeEl = document.getElementById('cpTime'+cp);
+
+            // Remove all state classes
+            item.classList.remove('clickable','blocked');
+            circle.classList.remove('state-pending','state-active','state-done');
+
+            if(isDone) {
+                circle.classList.add('state-done');
+                doneChk.classList.add('show');
+                tapLbl.classList.remove('show');
+                if(timestamps[cp]) {
+                    timeEl.textContent = '✓ ' + fmtTime(timestamps[cp]);
+                    timeEl.classList.add('show');
+                }
+            } else if(isActive) {
+                circle.classList.add('state-active');
+                item.classList.add('clickable');
+                tapLbl.classList.add('show');
+                doneChk.classList.remove('show');
+            } else {
+                circle.classList.add('state-pending');
+                item.classList.add('blocked');
+                tapLbl.classList.remove('show');
+                doneChk.classList.remove('show');
+            }
+        }
+
+        // Connectors
+        for(let c=1; c<=2; c++) {
+            const fill = document.getElementById('connFill'+c);
+            if(c < checkpointProgress) {
+                fill.style.height = '100%'; // connector between done steps
+            } else if(c === checkpointProgress) {
+                // In-progress connector
+                setTimeout(() => { fill.style.height = '100%'; }, 100);
+            } else {
+                fill.style.height = '0%';
+            }
+        }
+
+        // Progress pill
+        const pills = ['PENDIENTE','1 / 3','2 / 3','COMPLETO'];
+        document.getElementById('progLabel').textContent = checkpointProgress + ' / 3';
+        const pill = document.getElementById('progPill');
+        pill.textContent = checkpointProgress === 3 ? 'COMPLETO' : (checkpointProgress === 0 ? 'PENDIENTE' : 'EN PROGRESO');
+        pill.style.background = checkpointProgress === 3 ? 'rgba(16,185,129,0.2)' : (checkpointProgress > 0 ? 'rgba(245,158,11,0.2)' : 'rgba(100,116,139,0.15)');
+        pill.style.borderColor = checkpointProgress === 3 ? 'rgba(16,185,129,0.4)' : (checkpointProgress > 0 ? 'rgba(245,158,11,0.4)' : 'rgba(100,116,139,0.25)');
+        pill.style.color = checkpointProgress === 3 ? 'var(--green)' : (checkpointProgress > 0 ? 'var(--gold)' : 'var(--muted)');
+    }
+
+    /* ═══ TAP HANDLER ═══ */
+    function handleCheckpointTap(cp) {
+        // Validate: must be exactly the next step, and not finalized
+        if(cp !== checkpointProgress + 1) return;
+        if(checkpointProgress >= 3) return;
+
+        const item = document.getElementById('cpItem'+cp);
+        if(item.classList.contains('blocked')) return;
+
+        // Ripple
+        spawnRipple(item);
+
+        const ts = new Date().toISOString();
+        timestamps[cp] = ts;
+
+        const labels = {1:'Silla Asignada', 2:'Inicio de Servicio', 3:'Finalización de Servicio'};
+        showSending('Guardando ' + labels[cp] + '…');
+
+        sendToSheet(cp, labels[cp], ts, () => {
+            hideSending();
+            checkpointProgress = cp;
+
+            // Animate circle
+            const circle = document.getElementById('cpCircle'+cp);
+            circle.classList.remove('state-active');
+            circle.classList.add('state-done', 'bounce-in');
+            setTimeout(() => circle.classList.remove('bounce-in'), 600);
+
+            showToast('✓ ' + labels[cp]);
+            setTimeout(() => {
+                renderTimeline();
+                updateProgress();
+
+                // After final checkpoint → animate connector then show QR
+                if(cp === 3) {
+                    setTimeout(() => {
+                        showQRSection();
+                        showToast('⬇ Registra el retorno de la silla', 'gold');
+                    }, 700);
+                }
+            }, 500);
+        });
+    }
+
+    /* ═══ RIPPLE ═══ */
+    function spawnRipple(el) {
+        const rip = document.createElement('div');
+        rip.className = 'ripple-effect';
+        const rect = el.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        rip.style.cssText = `width:${size}px;height:${size}px;left:${rect.width/2-size/2}px;top:${rect.height/2-size/2}px`;
+        el.appendChild(rip);
+        rip.addEventListener('animationend', () => rip.remove());
+    }
+
+    /* ═══ QR SECTION ═══ */
+    function showQRSection() {
+        document.getElementById('qrCard').classList.add('show');
+        // Fill metrics
+        const t2 = timestamps[2], t3 = timestamps[3];
+        const fmt = iso => { try{ const d=new Date(iso); return d.toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}); }catch{return'—';} };
+        const fmtD= iso => { try{ const d=new Date(iso); return d.toLocaleDateString('es-CR',{day:'2-digit',month:'2-digit',year:'numeric'}); }catch{return'—';} };
+        document.getElementById('mDate').textContent  = t2 ? fmtD(t2) : (t3 ? fmtD(t3) : '—');
+        document.getElementById('mStart').textContent = t2 ? fmt(t2) : '—';
+        document.getElementById('mEnd').textContent   = t3 ? fmt(t3) : '—';
+        if(t2 && t3) {
+            const ms = new Date(t3)-new Date(t2);
+            const min = Math.floor(ms/60000), sec = Math.floor((ms%60000)/1000);
+            document.getElementById('mDuration').textContent = min+'m '+(sec<10?'0'+sec:sec)+'s';
+        }
+        scrollTo('sectionQR');
+    }
+
+    function proceedAfterQR() {
+        document.getElementById('qrCard').classList.remove('show');
+        // Show incident + return
+        document.getElementById('incidentCard').classList.add('show');
+        document.getElementById('returnCard').classList.add('show');
+        updateProgress();
+        scrollTo('sectionIncident');
+    }
+
+    /* ═══ INCIDENT ═══ */
+    function submitIncident() {
+        const desc = document.getElementById('incidentDescription').value.trim();
+        incidentText = desc || 'Sin incidentes reportados';
+        const ts = new Date().toISOString(); timestamps[4] = ts;
+        showSending('Guardando incidente…');
+        sendToSheet(4, 'Incidente: '+incidentText, ts, () => {
+            hideSending();
+            showToast(desc ? '⚠ Incidente registrado' : '✓ Sin incidentes');
+            document.getElementById('incidentCard').classList.remove('show');
+            scrollTo('sectionReturn');
+        });
+    }
+
+    function previewPhoto(input) {
+        if(input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                document.getElementById('previewImage').src = e.target.result;
+                document.getElementById('photoPreview').style.display = 'block';
+                incidentPhotoB64 = e.target.result;
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    /* ═══ RETURN ═══ */
+    function handleReturnTap() {
+        if(returnDone) return;
+        const item = document.getElementById('returnCpItem');
+        spawnRipple(item);
+
+        const ts = new Date().toISOString(); timestamps[5] = ts;
+        showSending('Guardando retorno de silla…');
+        sendToSheet(5, 'Retorno de Silla', ts, () => {
+            hideSending();
+            returnDone = true;
+
+            // Update return checkpoint visuals
+            const circle = document.getElementById('returnCpCircle');
+            circle.classList.add('done-state');
+            document.getElementById('returnCpIcon').style.opacity = '0';
+            const chk = document.getElementById('returnCpCheck');
+            chk.style.opacity = '1'; chk.style.transform = 'scale(1)';
+            document.getElementById('returnTapLabel').classList.remove('show');
+            const dc = document.getElementById('returnDoneCheck');
+            dc.classList.add('show');
+            const rt = document.getElementById('returnCpTime');
+            rt.textContent = '✓ ' + fmtTime(ts); rt.classList.add('show');
+            item.classList.add('done');
+
+            showToast('✓ Retorno registrado');
+            updateProgress();
+            setTimeout(() => showCompletionScreen(), 600);
+        });
+    }
+
+    /* ═══ COMPLETION ═══ */
+    function showCompletionScreen() {
+        // Hide all sections
+        ['sectionFlight','flightChip','sectionTimeline','sectionQR','sectionIncident','sectionReturn'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.style.display = 'none';
+        });
+
+        document.getElementById('sumReporte').textContent   = reportId;
+        document.getElementById('sumVuelo').textContent     = flightNum;
+        document.getElementById('sumAerolinea').textContent = AIRLINE_NAMES[airlineCode]||airlineCode;
+        document.getElementById('sumTipo').textContent      = SVC_LABELS[serviceType]||serviceType;
+        document.getElementById('sumInspector').textContent = currentUser.username;
+
+        const labels = {1:'🦽 Silla Asignada',2:'👤 Inicio Servicio',3:'🏁 Fin Servicio',4:'📝 Incidente',5:'🔄 Retorno'};
+        let html = '';
+        for(let s=1;s<=5;s++) {
+            if(!timestamps[s]) continue;
+            let diff = '';
+            if(s>1 && timestamps[s-1]) { const ms=new Date(timestamps[s])-new Date(timestamps[s-1]); if(ms>=0) diff='+'+Math.round(ms/60000)+'min'; }
+            html += `<div class="sum-row"><span class="sum-label">${labels[s]}</span><span class="sum-val">${fmtTimestamp(timestamps[s])}${diff?' <span style="color:var(--green);font-size:10px;">'+diff+'</span>':''}</span></div>`;
+        }
+        document.getElementById('timeSummary').innerHTML = html||'<div style="color:var(--muted);font-size:11px;padding:6px 0;">Sin tiempos</div>';
+
+        if(incidentText && incidentText !== 'Sin incidentes reportados') {
+            document.getElementById('incidentSummaryCard').style.display = 'block';
+            document.getElementById('incidentSummaryContent').innerHTML = `<div class="sum-row"><span class="sum-label">Descripción</span><span class="sum-val">${incidentText}</span></div>`;
+        }
+
+        updateProgress();
+        document.getElementById('completionScreen').classList.add('show');
+        scrollTo('completionScreen');
+    }
+
+    function newReport() {
+        checkpointProgress=0; returnDone=false; timestamps={}; incidentText=''; incidentPhotoB64='';
+        reportId=''; flightNum=''; serviceType=''; airlineCode=''; isResume=false; resumeRowId=null;
+        ['airlineType','airlineSelect','flightNumber','incidentDescription'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+        document.getElementById('photoPreview').style.display='none';
+        document.getElementById('completionScreen').classList.remove('show');
+        document.getElementById('incidentSummaryCard').style.display='none';
+        document.getElementById('flightChip').classList.remove('show');
+        document.getElementById('flightForm').style.display='';
+        document.getElementById('timelineCard').classList.remove('show');
+        document.getElementById('incidentCard').classList.remove('show');
+        document.getElementById('returnCard').classList.remove('show');
+        document.getElementById('qrCard').classList.remove('show');
+        document.getElementById('resumeBanner').classList.remove('show');
+        ['sectionFlight','flightChip','sectionTimeline','sectionQR','sectionIncident','sectionReturn'].forEach(id=>{
+            const el=document.getElementById(id); if(el) el.style.display='';
+        });
+        document.getElementById('sectionFlight').style.marginBottom='';
+        renderTimeline();
+        updateProgress();
+        // Re-init return checkpoint
+        document.getElementById('returnCpCircle').classList.remove('done-state');
+        document.getElementById('returnCpIcon').style.opacity='1';
+        document.getElementById('returnCpCheck').style.opacity='0';
+        document.getElementById('returnCpCheck').style.transform='scale(0.5)';
+        document.getElementById('returnTapLabel').classList.add('show');
+        document.getElementById('returnDoneCheck').classList.remove('show');
+        document.getElementById('returnCpTime').classList.remove('show');
+        document.getElementById('returnCpItem').classList.remove('done');
+        scrollToTop();
+    }
+
+    /* ═══ PROGRESS BAR ═══ */
+    function updateProgress() {
+        const total = 5; // 0=flight, 1-3=checkpoints, 4=incident, 5=return
+        let done = 0;
+        if(timestamps[0]) done++;
+        if(checkpointProgress >= 1) done++;
+        if(checkpointProgress >= 2) done++;
+        if(checkpointProgress >= 3) done++;
+        if(timestamps[4]) done++;
+        if(timestamps[5]) done++;
+        const pct = Math.round((done/6)*100);
+        document.getElementById('progressBar').style.width = pct + '%';
+        const steps = ['INFORMACIÓN DE VUELO','SILLA ASIGNADA','INICIO DE SERVICIO','FINALIZACIÓN','INCIDENTE','RETORNO DE SILLA','COMPLETADO'];
+        document.getElementById('stepCounter').textContent = steps[Math.min(done, steps.length-1)];
+    }
+
+    /* ═══ APPS SCRIPT JSONP ═══ */
+    function sendToSheet(step, item, timestamp, onDone) {
+        const cbName = 'sillaCb' + Date.now() + '_' + step;
+        window[cbName] = function(response) {
+            delete window[cbName];
+            const scr = document.getElementById('silla-script');
+            if(scr) scr.remove();
+            if(response && response.success) { if(onDone) onDone(response); }
+            else { hideSending(); showToast('Error: '+(response?response.message:'conexión'), 'error'); if(onDone) onDone({success:false}); }
+        };
+        let url = SCRIPT_URL+'?user='+encodeURIComponent(currentUser.username)+'&role='+encodeURIComponent(currentUser.role)+'&step='+step+'&item='+encodeURIComponent(item)+'&timestamp='+encodeURIComponent(timestamp)+'&callback='+cbName;
+        if(step===0) {
+            url += '&serviceType='+encodeURIComponent(serviceType)+'&reportId='+encodeURIComponent(reportId);
+            if(isResume && resumeRowId) url += '&resumeRowId='+encodeURIComponent(resumeRowId);
+        }
+        const scr = document.createElement('script'); scr.id='silla-script'; scr.src=url;
+        scr.onerror = () => { delete window[cbName]; scr.remove(); hideSending(); showToast('Error de conexión','error'); if(onDone) onDone({success:false}); };
+        document.body.appendChild(scr);
+        setTimeout(() => { if(window[cbName]){ delete window[cbName]; hideSending(); showToast('Tiempo agotado','error'); if(onDone) onDone({success:false}); } }, 15000);
+    }
+
+    /* ═══ HELPERS ═══ */
+    function fmtTime(iso) {
+        try{ const d=new Date(iso); return d.toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}); }catch{return iso;}
+    }
+    function fmtTimestamp(iso) {
+        try{ const d=new Date(iso); return d.toLocaleDateString('es-CR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit',hour12:false}); }catch{return iso;}
+    }
+    function scrollTo(id) {
+        const el = document.getElementById(id);
+        if(el) setTimeout(() => el.scrollIntoView({behavior:'smooth',block:'start'}), 150);
+    }
+    function scrollToTop() { const c=document.querySelector('.app-content'); if(c) c.scrollTo({top:0,behavior:'smooth'}); }
+    function showSending(msg) { document.getElementById('sendLabel').textContent=msg||'Guardando…'; document.getElementById('sendingOverlay').classList.add('show'); }
+    function hideSending() { document.getElementById('sendingOverlay').classList.remove('show'); }
+    function showToast(msg, type='') {
+        const t=document.getElementById('toast');
+        t.textContent=msg; t.className='toast'+(type?' '+type:'');
+        t.classList.add('show');
+        setTimeout(()=>t.classList.remove('show'),2800);
+    }
+    function goToHistory() { window.location.href='HT.html'; }
+    function logout() { if(confirm('¿Cerrar sesión?')){ sessionStorage.clear(); window.location.href='index.html'; } }
+    </script>
+</body>
+</html>
