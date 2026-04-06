@@ -160,7 +160,7 @@ const Toast = {
     document.body.appendChild(this._container);
   },
   show(msg, type = 'info', icon = '💬') {
-    if (!this._container) this.init();
+    this.init();
     const el = document.createElement('div');
     el.className = `toast ${type}`;
     el.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
