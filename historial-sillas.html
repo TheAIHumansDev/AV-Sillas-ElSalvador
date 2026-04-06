@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Avianca SAL · Historial de Servicios</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-radial"></div>
+  <div class="bg-stars"></div>
+  <div class="toast-container" id="toastContainer"></div>
+
+  <div class="app-wrapper">
+    <!-- Header -->
+    <header class="app-header" id="appHeader"></header>
+
+    <!-- Content -->
+    <main class="page-content page-enter">
+
+      <!-- Page Title -->
+      <div class="flex items-center justify-between mb-24">
+        <div>
+          <div class="page-title">Panel de Servicios</div>
+          <div class="page-meta" id="pageDate">Aeropuerto SAL · Cargando...</div>
+        </div>
+        <div class="report-num" id="sessionUser">---</div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row mb-24">
+        <div class="glass-card stat-card active">
+          <div class="stat-value" id="statActive">0</div>
+          <div class="stat-label">En Proceso</div>
+        </div>
+        <div class="glass-card stat-card done">
+          <div class="stat-value" id="statDone">0</div>
+          <div class="stat-label">Completados</div>
+        </div>
+        <div class="glass-card stat-card total">
+          <div class="stat-value" id="statTotal">0</div>
+          <div class="stat-label">Total Hoy</div>
+        </div>
+      </div>
+
+      <!-- Filter -->
+      <div class="flex gap-8 mb-16" id="filterRow">
+        <button class="btn btn-secondary btn-sm filter-btn active" data-filter="all" onclick="setFilter('all',this)">Todos</button>
+        <button class="btn btn-secondary btn-sm filter-btn" data-filter="active" onclick="setFilter('active',this)">En Proceso</button>
+        <button class="btn btn-secondary btn-sm filter-btn" data-filter="done" onclick="setFilter('done',this)">Completados</button>
+      </div>
+
+      <!-- Section title -->
+      <div class="section-title">Registro de Servicios</div>
+
+      <!-- List -->
+      <div class="service-list" id="serviceList"></div>
+
+      <!-- Empty state -->
+      <div class="empty-state hidden" id="emptyState">
+        <span class="emoji">♿</span>
+        <p>No hay servicios registrados.<br/>Presiona <strong>+</strong> para crear el primero.</p>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- FAB: New Service -->
+  <button class="fab" onclick="window.location.href='sillas.html'" title="Nuevo servicio">＋</button>
+
+  <script src="app.js"></script>
+  <script>
+    const session = Auth.require();
+    if (!session) throw new Error('No session');
+
+    let currentFilter = 'all';
+
+    function init() {
+      renderHeader({ addBtn: true });
+
+      // Page date
+      const now = new Date();
+      document.getElementById('pageDate').textContent =
+        `${now.toLocaleDateString('es-SV', { weekday:'long', day:'2-digit', month:'long' })} · SAL`;
+      document.getElementById('sessionUser').textContent = session.name;
+
+      renderList();
+    }
+
+    function setFilter(filter, btn) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderList();
+    }
+
+    function renderList() {
+      const all = Store.getAll();
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const today = all.filter(s => s.createdAt.startsWith(todayStr));
+
+      // Stats
+      document.getElementById('statActive').textContent = today.filter(s => s.status === 'active').length;
+      document.getElementById('statDone').textContent = today.filter(s => s.status === 'done').length;
+      document.getElementById('statTotal').textContent = today.length;
+
+      let filtered = today;
+      if (currentFilter === 'active') filtered = today.filter(s => s.status === 'active');
+      if (currentFilter === 'done') filtered = today.filter(s => s.status === 'done');
+
+      const list = document.getElementById('serviceList');
+      const empty = document.getElementById('emptyState');
+
+      if (filtered.length === 0) {
+        list.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      list.innerHTML = filtered.map(s => buildServiceCard(s)).join('');
+    }
+
+    function buildServiceCard(s) {
+      const statusClass = s.status === 'done' ? 'status-done' : 'status-active';
+      const badgeClass = s.status === 'done' ? 'badge-done' : 'badge-active';
+      const badgeText = s.status === 'done' ? '✔ Completado' : '⟳ En Proceso';
+      const typeName = { 'sala': 'Asistencia a Sala', 'desabordaje': 'Desabordaje', 'otro': 'Otro' }[s.type] || s.type;
+
+      const steps = [
+        s.progress >= 1 ? 'done' : (s.progress === 0 ? 'active' : ''),
+        s.progress >= 2 ? 'done' : (s.progress === 1 ? 'active' : ''),
+        s.progress >= 3 ? 'done' : (s.progress === 2 ? 'active' : '')
+      ];
+
+      return `
+        <div class="glass-card service-card ${statusClass}" onclick="openService('${s.id}')" style="cursor:pointer;">
+          <div class="service-card-header">
+            <div>
+              <div class="service-flight">✈ ${s.flight}</div>
+              <div class="report-num" style="margin-top:4px;display:inline-block;">${s.reportNum}</div>
+            </div>
+            <span class="service-badge ${badgeClass}">${badgeText}</span>
+          </div>
+          <div class="service-info">
+            <span class="service-info-item">🧑 <strong>${s.passenger || 'Sin nombre'}</strong></span>
+            <span class="service-info-item">📋 <strong>${typeName}</strong></span>
+            <span class="service-info-item">🕐 <strong>${TimeUtil.fmt(s.createdAt)}</strong></span>
+            ${s.status === 'done' ? `<span class="service-info-item">⏱ <strong>${TimeUtil.diffMin(s.startedAt, s.finishedAt)} min</strong></span>` : ''}
+          </div>
+          <div class="mini-progress">
+            <div class="mini-step ${steps[0]}"></div>
+            <div class="mini-step ${steps[1]}"></div>
+            <div class="mini-step ${steps[2]}"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function openService(id) {
+      window.location.href = `sillas.html?id=${id}`;
+    }
+
+    init();
+
+    // Auto-refresh every 30s
+    setInterval(renderList, 30000);
+  </script>
+  <style>
+    .filter-btn.active {
+      background: linear-gradient(135deg, var(--avianca-red), var(--avianca-orange)) !important;
+      color: white !important;
+      border-color: transparent !important;
+    }
+  </style>
+</body>
+</html>

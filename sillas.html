@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Avianca SAL · Servicio de Silla</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-radial"></div>
+  <div class="bg-stars"></div>
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Camera Modal -->
+  <div class="modal-overlay hidden" id="cameraModal">
+    <div class="modal-box">
+      <div class="section-title">📷 Capturar Imagen</div>
+      <video id="cameraFeed" autoplay playsinline style="margin-bottom:16px;"></video>
+      <div class="flex gap-12">
+        <button class="btn btn-primary" style="flex:1;" onclick="capturePhoto()">📸 Capturar</button>
+        <button class="btn btn-secondary" style="flex:1;" onclick="closeCamera()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-wrapper">
+    <header class="app-header" id="appHeader"></header>
+
+    <main class="page-content page-enter" id="mainContent">
+      <!-- Dynamic content rendered by JS -->
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    const session = Auth.require();
+    if (!session) throw new Error('No session');
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const editId = urlParams.get('id');
+    let currentService = editId ? Store.getById(editId) : null;
+    let incidentPhoto = null;
+    let cameraStream = null;
+
+    function init() {
+      renderHeader({ backTo: 'historial-sillas.html' });
+      if (currentService) {
+        renderServiceDetail();
+      } else {
+        renderNewForm();
+      }
+    }
+
+    // ── NEW SERVICE FORM ──────────────────────
+    function renderNewForm() {
+      document.getElementById('mainContent').innerHTML = `
+        <div class="flex items-center justify-between mb-24">
+          <div>
+            <div class="page-title">Nuevo Servicio</div>
+            <div class="page-meta">Registro de asistencia de silla de ruedas</div>
+          </div>
+        </div>
+
+        <div class="glass-card p-20 mb-20">
+          <div class="section-title">Información del Vuelo</div>
+
+          <div class="form-group">
+            <label class="form-label">Número de Vuelo <span class="form-required">*</span></label>
+            <input type="text" id="flightNum" class="form-input" placeholder="AV123" style="text-transform:uppercase;" maxlength="8"/>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Tipo de Asistencia <span class="form-required">*</span></label>
+            <div class="radio-group">
+              <label class="radio-option" id="opt-sala">
+                <input type="radio" name="serviceType" value="sala" onchange="selectType(this)"/>
+                🚪 Asistencia a Sala
+              </label>
+              <label class="radio-option" id="opt-desabordaje">
+                <input type="radio" name="serviceType" value="desabordaje" onchange="selectType(this)"/>
+                🛬 Desabordaje
+              </label>
+              <label class="radio-option" id="opt-otro">
+                <input type="radio" name="serviceType" value="otro" onchange="selectType(this)"/>
+                ⚙️ Otro
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Nombre del Pasajero <span style="color:var(--text-muted);font-size:9px;">(OPCIONAL)</span></label>
+            <input type="text" id="passengerName" class="form-input" placeholder="Nombre completo del pasajero"/>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="createService()">
+          ♿ Iniciar Servicio
+        </button>
+      `;
+    }
+
+    function selectType(radio) {
+      document.querySelectorAll('.radio-option').forEach(el => el.classList.remove('selected'));
+      radio.closest('.radio-option').classList.add('selected');
+    }
+
+    function createService() {
+      const flight = document.getElementById('flightNum').value.trim().toUpperCase();
+      const type = document.querySelector('input[name="serviceType"]:checked')?.value;
+      const passenger = document.getElementById('passengerName').value.trim();
+
+      if (!flight) { Toast.error('El número de vuelo es requerido'); return; }
+      if (!type) { Toast.error('Selecciona el tipo de asistencia'); return; }
+
+      currentService = Store.create({
+        flight, type, passenger,
+        user: session.user,
+        role: session.role || document.getElementById('loginRole')?.value || 'Agente SAL'
+      });
+
+      Toast.success('✅ Servicio creado correctamente');
+      Sync.push(currentService);
+      window.history.replaceState({}, '', `sillas.html?id=${currentService.id}`);
+      renderServiceDetail();
+    }
+
+    // ── SERVICE DETAIL ─────────────────────────
+    function renderServiceDetail() {
+      const s = currentService;
+      const typeName = { 'sala': 'Asistencia a Sala', 'desabordaje': 'Desabordaje', 'otro': 'Otro' }[s.type] || s.type;
+
+      document.getElementById('mainContent').innerHTML = `
+        <div class="flex items-center justify-between mb-16">
+          <div>
+            <div class="page-title">✈ ${s.flight}</div>
+            <div class="page-meta">${typeName} · ${s.passenger || 'Sin nombre de pasajero'}</div>
+          </div>
+          <div class="report-num">${s.reportNum}</div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="glass-card progress-wrap mb-20">
+          <div class="progress-header">
+            <span class="progress-label">Progreso del Servicio</span>
+            <span class="progress-pct" id="progressPct">${Math.round((s.progress / 3) * 100)}%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill" style="width:${Math.round((s.progress / 3) * 100)}%"></div>
+          </div>
+        </div>
+
+        <!-- Checkpoints -->
+        <div class="glass-card mb-20">
+          <div style="padding:16px 20px 8px;">
+            <div class="section-title">Checkpoints del Servicio</div>
+          </div>
+
+          <div class="checkpoint-list" id="checkpointList">
+            ${renderCheckpoints(s)}
+          </div>
+        </div>
+
+        <!-- Return Chair Section -->
+        <div class="glass-card mb-20 ${s.progress < 3 ? 'hidden' : ''}" id="returnSection">
+          <div style="padding:16px 20px;">
+            <div class="section-title">♻️ Retorno de Silla</div>
+            <p class="text-muted mb-16">¿La silla de ruedas fue devuelta al punto de retorno?</p>
+            <div class="return-options">
+              <div class="return-option ${s.returnStatus === 'done' ? 'selected' : ''}" onclick="setReturn('done',this)">
+                ✅ Retorno Completado
+              </div>
+              <div class="return-option ${s.returnStatus === 'na' ? 'selected' : ''}" onclick="setReturn('na',this)">
+                🚫 N/A
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary (shown when done) -->
+        <div class="glass-card mb-20 ${s.status !== 'done' ? 'hidden' : ''}" id="summarySection">
+          <div style="padding:20px;">
+            <div class="section-title">📊 Resumen del Servicio</div>
+            <div class="summary-grid" id="summaryGrid">${renderSummary(s)}</div>
+          </div>
+        </div>
+
+        <!-- QR Section (shown when done) -->
+        <div class="glass-card mb-20 ${s.status !== 'done' ? 'hidden' : ''}" id="qrSection">
+          <div class="qr-wrap">
+            <div class="section-title" style="width:100%;">⭐ Feedback del Pasajero</div>
+            <img id="qrImg" src="${QR.generateURL('https://avianca-sal-feedback.netlify.app/service-feedback.html?id=' + s.id)}"
+                 alt="QR Feedback" width="200" height="200"/>
+            <div class="qr-label">Muestra este código al pasajero<br/>para calificar el servicio</div>
+            <a href="service-feedback.html?id=${s.id}" class="btn btn-secondary btn-sm" target="_blank">
+              Abrir Formulario de Feedback
+            </a>
+          </div>
+        </div>
+
+        <!-- Incident Report -->
+        <div class="glass-card mb-20">
+          <div class="incident-toggle" onclick="toggleIncident()">
+            <div class="incident-icon">🚨</div>
+            <div>
+              <div style="font-weight:600;font-size:14px;">Reporte de Incidente</div>
+              <div class="text-muted" style="font-size:12px;">Reportar problema o situación inusual</div>
+            </div>
+            <span style="margin-left:auto;color:var(--text-muted);" id="incidentArrow">▼</span>
+          </div>
+          <div class="incident-body" id="incidentBody">
+            <div class="form-group">
+              <label class="form-label">Descripción del Incidente</label>
+              <textarea id="incidentDesc" class="form-input" placeholder="Describe brevemente el incidente..." rows="3">${s.incident?.desc || ''}</textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Evidencia Fotográfica</label>
+              <div class="image-upload-area" onclick="document.getElementById('fileInput').click()">
+                <div style="font-size:32px;">📎</div>
+                <p>Toca para adjuntar imagen</p>
+              </div>
+              <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileInput(event)"/>
+              <div class="upload-btns">
+                <button class="btn btn-secondary btn-sm" onclick="openCamera()">📷 Cámara</button>
+                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('fileInput').click()">🖼 Galería</button>
+              </div>
+              <img id="incidentPreview" class="image-preview" src="" alt="preview"/>
+            </div>
+            <button class="btn btn-danger btn-sm" onclick="saveIncident()">🚨 Guardar Reporte</button>
+
+            ${s.incident ? `
+              <div style="margin-top:12px;padding:10px;background:rgba(232,0,29,0.08);border:1px solid rgba(232,0,29,0.2);border-radius:8px;font-size:12px;color:var(--avianca-red);">
+                ⚠️ Incidente reportado · ${TimeUtil.fmt(s.incident.reportedAt)}
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+
+      // Restore incident photo preview if exists
+      if (s.incident?.photoBase64) {
+        const prev = document.getElementById('incidentPreview');
+        if (prev) { prev.src = s.incident.photoBase64; prev.style.display = 'block'; }
+        incidentPhoto = s.incident.photoBase64;
+      }
+    }
+
+    function renderCheckpoints(s) {
+      const steps = [
+        { icon: '♿', label: 'Silla de Ruedas Asignada', desc: 'Confirma la asignación de la silla', field: 'assignedAt', step: 1 },
+        { icon: '🚀', label: 'Inicio de Servicio', desc: 'El servicio ha comenzado con el pasajero', field: 'startedAt', step: 2 },
+        { icon: '✅', label: 'Finalización de Servicio', desc: 'El pasajero llegó a su destino', field: 'finishedAt', step: 3 },
+      ];
+
+      return steps.map((cp, i) => {
+        const done = s.progress > cp.step - 1;
+        const active = s.progress === cp.step - 1;
+        const locked = s.progress < cp.step - 1;
+
+        const cls = done ? 'done-cp' : active ? 'active-cp' : locked ? 'locked-cp' : '';
+        const icon = done ? '✔' : cp.icon;
+        const connectorClass = done ? 'done' : '';
+
+        return `
+          ${i > 0 ? `<div class="checkpoint-connector ${connectorClass}"></div>` : ''}
+          <div class="checkpoint-item ${cls}" onclick="advanceCheckpoint(${cp.step})" data-step="${cp.step}">
+            <div class="cp-indicator" id="cpInd-${cp.step}">${icon}</div>
+            <div class="cp-body">
+              <div class="cp-title">${cp.label}</div>
+              <div class="cp-meta">${cp.desc}</div>
+              ${done && s[cp.field] ? `<div class="cp-timestamp">✓ ${TimeUtil.fmt(s[cp.field])}</div>` : ''}
+            </div>
+            ${done ? '<span style="color:#00dc82;font-size:20px;">✓</span>' : ''}
+            ${active ? '<span style="color:var(--avianca-gold);font-size:14px;animation:pulse-active 2s infinite;">TAP</span>' : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderSummary(s) {
+      if (!s.startedAt) return '<p class="text-muted">Sin datos de servicio aún</p>';
+      const dur = TimeUtil.diffSec(s.startedAt, s.finishedAt);
+      return `
+        <div class="summary-item"><div class="summary-key">Reporte</div><div class="summary-val">${s.reportNum}</div></div>
+        <div class="summary-item"><div class="summary-key">Fecha</div><div class="summary-val">${TimeUtil.fmtDate(s.createdAt)}</div></div>
+        <div class="summary-item"><div class="summary-key">Hora Inicio</div><div class="summary-val">${TimeUtil.fmt(s.startedAt)}</div></div>
+        <div class="summary-item"><div class="summary-key">Hora Fin</div><div class="summary-val">${TimeUtil.fmt(s.finishedAt)}</div></div>
+        <div class="summary-item"><div class="summary-key">Duración</div><div class="summary-val highlight">${TimeUtil.formatDuration(dur)}</div></div>
+        <div class="summary-item"><div class="summary-key">Vuelo</div><div class="summary-val">✈ ${s.flight}</div></div>
+      `;
+    }
+
+    function advanceCheckpoint(step) {
+      // Only advance if current progress matches step-1
+      if (currentService.progress !== step - 1) return;
+      if (currentService.status === 'done') return;
+
+      const now = new Date().toISOString();
+      const patch = { progress: step };
+
+      if (step === 1) patch.assignedAt = now;
+      if (step === 2) patch.startedAt = now;
+      if (step === 3) {
+        patch.finishedAt = now;
+        patch.status = 'done';
+      }
+
+      currentService = Store.update(currentService.id, patch);
+
+      // Animate the indicator
+      const ind = document.getElementById(`cpInd-${step}`);
+      if (ind) {
+        ind.innerHTML = '✔';
+        ind.classList.add('cp-check-anim');
+      }
+
+      // Ripple
+      const cpEl = document.querySelector(`[data-step="${step}"]`);
+      if (cpEl) addRipple(cpEl, null);
+
+      Toast.success(`Checkpoint "${step === 1 ? 'Asignación' : step === 2 ? 'Inicio' : 'Finalización'}" registrado`);
+
+      // Update progress bar
+      const pct = Math.round((step / 3) * 100);
+      const fill = document.getElementById('progressFill');
+      const pctEl = document.getElementById('progressPct');
+      if (fill) fill.style.width = pct + '%';
+      if (pctEl) pctEl.textContent = pct + '%';
+
+      // Sync
+      Sync.push(currentService);
+
+      // Re-render after animation
+      setTimeout(() => {
+        renderServiceDetail();
+        // Show return section if finished
+        if (step === 3) {
+          document.getElementById('returnSection')?.classList.remove('hidden');
+          document.getElementById('summarySection')?.classList.remove('hidden');
+          document.getElementById('qrSection')?.classList.remove('hidden');
+          Toast.info('¡Servicio completado! Registra el retorno de la silla.');
+        }
+      }, 500);
+    }
+
+    function setReturn(status, el) {
+      document.querySelectorAll('.return-option').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+      const now = new Date().toISOString();
+      currentService = Store.update(currentService.id, { returnStatus: status, returnAt: now });
+      Toast.success(status === 'done' ? '♻️ Retorno de silla registrado' : 'Retorno marcado como N/A');
+      Sync.push(currentService);
+    }
+
+    function toggleIncident() {
+      const body = document.getElementById('incidentBody');
+      const arrow = document.getElementById('incidentArrow');
+      body.classList.toggle('open');
+      arrow.textContent = body.classList.contains('open') ? '▲' : '▼';
+    }
+
+    function handleFileInput(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        incidentPhoto = e.target.result;
+        const prev = document.getElementById('incidentPreview');
+        prev.src = incidentPhoto;
+        prev.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function saveIncident() {
+      const desc = document.getElementById('incidentDesc').value.trim();
+      if (!desc) { Toast.error('Ingresa una descripción del incidente'); return; }
+      const now = new Date().toISOString();
+      const incident = {
+        desc,
+        hasPhoto: !!incidentPhoto,
+        photoBase64: incidentPhoto || null,
+        reportedAt: now
+      };
+      currentService = Store.update(currentService.id, { incident });
+      Toast.success('🚨 Incidente reportado y guardado');
+      Sync.push(currentService);
+      renderServiceDetail();
+    }
+
+    // ── CAMERA ──────────────────────────────
+    async function openCamera() {
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        document.getElementById('cameraFeed').srcObject = cameraStream;
+        document.getElementById('cameraModal').classList.remove('hidden');
+      } catch {
+        Toast.error('No se pudo acceder a la cámara. Usa la galería.');
+      }
+    }
+
+    function capturePhoto() {
+      const video = document.getElementById('cameraFeed');
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      incidentPhoto = canvas.toDataURL('image/jpeg', 0.8);
+      const prev = document.getElementById('incidentPreview');
+      if (prev) { prev.src = incidentPhoto; prev.style.display = 'block'; }
+      closeCamera();
+      Toast.success('📷 Foto capturada');
+    }
+
+    function closeCamera() {
+      if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+      document.getElementById('cameraModal').classList.add('hidden');
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Avianca SAL · Acceso</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-radial"></div>
+  <div class="bg-stars"></div>
+
+  <!-- Toast -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Theme toggle (top right) -->
+  <div style="position:fixed;top:16px;right:16px;z-index:100;">
+    <button class="theme-toggle" id="themeToggle" onclick="Theme.toggle()" title="Cambiar tema">
+      <span class="theme-icon moon">🌙</span>
+      <span class="theme-icon sun">☀️</span>
+    </button>
+  </div>
+
+  <div class="app-wrapper login-page">
+    <div class="login-container page-enter">
+
+      <!-- Logo -->
+      <div class="login-logo-wrap">
+        <div class="login-logo-ring">
+          <div class="login-logo-inner">♿</div>
+        </div>
+        <div class="login-title">AVIANCA SAL</div>
+        <div class="login-subtitle">Wheelchair Service Monitor · SAL</div>
+      </div>
+
+      <!-- Card -->
+      <div class="glass-card login-card">
+        <div class="section-title">Acceso al Sistema</div>
+
+        <div class="form-group">
+          <label class="form-label">Usuario</label>
+          <input type="text" id="loginUser" class="form-input" placeholder="Ingresa tu usuario" autocomplete="username"/>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Contraseña</label>
+          <input type="password" id="loginPass" class="form-input" placeholder="••••••••" autocomplete="current-password"/>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Rol</label>
+          <select id="loginRole" class="form-select">
+            <option value="Agente SAL">Agente SAL</option>
+            <option value="Supervisor">Supervisor</option>
+            <option value="Coordinador">Coordinador</option>
+          </select>
+        </div>
+
+        <button class="btn btn-primary" id="loginBtn" onclick="doLogin()">
+          <span id="loginBtnText">Ingresar al Sistema</span>
+        </button>
+
+        <div class="divider"></div>
+
+        <p class="text-center text-muted" style="font-size:11px;line-height:1.7;">
+          💡 Demo: <strong style="color:var(--text-secondary);">demo</strong> / <strong style="color:var(--text-secondary);">demo</strong>
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <p style="text-align:center;margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text-muted);letter-spacing:0.2em;">
+        AEROPUERTO INTERNACIONAL MONSEÑOR OSCAR ARNULFO ROMERO · SAL
+      </p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Redirect if already logged in
+    const existing = Auth.getSession();
+    if (existing) window.location.href = 'historial-sillas.html';
+
+    function doLogin() {
+      const user = document.getElementById('loginUser').value.trim();
+      const pass = document.getElementById('loginPass').value;
+      const btn = document.getElementById('loginBtn');
+      const btnText = document.getElementById('loginBtnText');
+
+      if (!user || !pass) { Toast.error('Completa todos los campos'); return; }
+
+      // Loading state
+      btn.disabled = true;
+      btnText.innerHTML = '<span class="loader"></span> Verificando...';
+
+      setTimeout(() => {
+        const ok = Auth.login(user, pass);
+        if (ok) {
+          Toast.success('¡Bienvenido! Redirigiendo...');
+          btnText.innerHTML = '✅ Acceso concedido';
+          btn.style.background = 'linear-gradient(135deg,#00a86b,#00dc82)';
+          setTimeout(() => { window.location.href = 'historial-sillas.html'; }, 800);
+        } else {
+          btn.disabled = false;
+          btnText.textContent = 'Ingresar al Sistema';
+          Toast.error('Usuario o contraseña incorrectos');
+          document.getElementById('loginPass').value = '';
+          document.getElementById('loginPass').classList.add('shake');
+          setTimeout(() => document.getElementById('loginPass').classList.remove('shake'), 500);
+        }
+      }, 900);
+    }
+
+    // Enter key
+    document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  </script>
+  <style>
+    @keyframes shake {
+      0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)}
+    }
+    .shake { animation: shake 0.3s ease; border-color: var(--avianca-red) !important; }
+  </style>
+</body>
+</html>
