@@ -1,239 +1,600 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Avianca · Service Feedback</title>
-  <link rel="stylesheet" href="styles.css"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Wheelchair Service Feedback / Retroalimentación de Servicio</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --navy:    #0d1b2a;
+            --blue:    #1565c0;
+            --sky:     #42a5f5;
+            --gold:    #ffb300;
+            --gold2:   #ffd54f;
+            --white:   #ffffff;
+            --offwhite:#f5f7fa;
+            --muted:   #8898aa;
+            --text:    #1a2332;
+            --card:    #ffffff;
+            --border:  #e8edf2;
+            --success: #00897b;
+            --radius:  18px;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--offwhite);
+            min-height: 100vh;
+            color: var(--text);
+        }
+
+        /* ── TOP HERO BAND ── */
+        .hero {
+            background: linear-gradient(135deg, #0d1b2a 0%, #1565c0 60%, #1976d2 100%);
+            padding: 32px 20px 52px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: radial-gradient(ellipse at 80% 20%, rgba(66,165,245,0.25) 0%, transparent 60%),
+                        radial-gradient(ellipse at 20% 80%, rgba(255,179,0,0.12) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        .hero-logo {
+            font-size: 54px;
+            margin-bottom: 6px;
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+        }
+        .hero-title {
+            font-size: clamp(20px, 5vw, 28px);
+            font-weight: 800;
+            color: #fff;
+            line-height: 1.2;
+            margin-bottom: 4px;
+        }
+        .hero-sub {
+            font-size: clamp(12px, 3vw, 15px);
+            color: rgba(255,255,255,0.65);
+            font-weight: 400;
+        }
+        .lang-toggle {
+            position: absolute;
+            top: 18px; right: 18px;
+            display: flex; gap: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 30px;
+            padding: 3px;
+        }
+        .lang-btn {
+            padding: 5px 12px;
+            border-radius: 24px;
+            border: none;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            transition: all 0.2s;
+            color: rgba(255,255,255,0.65);
+            background: transparent;
+        }
+        .lang-btn.active {
+            background: var(--gold);
+            color: #0d1b2a;
+        }
+
+        /* ── CARD LIFT ── */
+        .card-lift {
+            background: var(--card);
+            border-radius: 24px 24px 0 0;
+            margin-top: -22px;
+            position: relative;
+            z-index: 2;
+            padding: 28px 20px 40px;
+            max-width: 520px;
+            margin-left: auto;
+            margin-right: auto;
+            min-height: calc(100vh - 160px);
+        }
+
+        /* ── SECTION ── */
+        .section { margin-bottom: 28px; }
+        .section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 12px;
+        }
+
+        /* ── STAR RATING ── */
+        .star-question { margin-bottom: 26px; }
+        .star-q-text { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 14px; line-height: 1.4; }
+        .star-row {
+            display: flex; gap: 8px; justify-content: center;
+            padding: 10px 0;
+        }
+        .star {
+            font-size: 40px;
+            cursor: pointer;
+            transition: transform 0.15s, filter 0.15s;
+            filter: grayscale(1) opacity(0.3);
+            user-select: none;
+        }
+        .star:hover, .star.active {
+            filter: grayscale(0) opacity(1) drop-shadow(0 2px 8px rgba(255,179,0,0.5));
+            transform: scale(1.15);
+        }
+        .star.hover-preview {
+            filter: grayscale(0) opacity(0.7);
+            transform: scale(1.08);
+        }
+
+        /* ── CHIP CHOICES ── */
+        .chip-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+        .chip {
+            padding: 8px 16px;
+            border: 1.5px solid var(--border);
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.18s;
+            background: var(--white);
+            color: #4a5568;
+            user-select: none;
+        }
+        .chip:hover { border-color: var(--sky); color: var(--blue); }
+        .chip.selected {
+            background: linear-gradient(135deg, var(--blue), var(--sky));
+            border-color: transparent;
+            color: #fff;
+            transform: scale(1.02);
+        }
+
+        /* ── TEXTAREA ── */
+        .feedback-area {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1.5px solid var(--border);
+            border-radius: 14px;
+            font-size: 14px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: var(--text);
+            background: var(--offwhite);
+            resize: vertical;
+            min-height: 100px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .feedback-area:focus { border-color: var(--sky); background: #fff; }
+        .feedback-area::placeholder { color: #b0bec5; }
+
+        /* ── NPS ── */
+        .nps-row {
+            display: flex; gap: 5px; flex-wrap: wrap; justify-content: center;
+        }
+        .nps-btn {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            border: 1.5px solid var(--border);
+            background: var(--white);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex; align-items: center; justify-content: center;
+            color: #4a5568;
+        }
+        .nps-btn:hover { border-color: var(--sky); color: var(--blue); }
+        .nps-btn.selected.low    { background: #ef5350; border-color: #ef5350; color: #fff; }
+        .nps-btn.selected.mid    { background: #ffa726; border-color: #ffa726; color: #fff; }
+        .nps-btn.selected.high   { background: #43a047; border-color: #43a047; color: #fff; }
+        .nps-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 6px; padding: 0 2px; }
+
+        /* ── SUBMIT ── */
+        .submit-btn {
+            width: 100%;
+            padding: 17px;
+            background: linear-gradient(135deg, var(--blue) 0%, #1976d2 100%);
+            border: none;
+            border-radius: 14px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            transition: all 0.25s;
+            margin-top: 8px;
+            letter-spacing: 0.3px;
+        }
+        .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(21,101,192,0.4); }
+        .submit-btn:active { transform: none; opacity: 0.9; }
+        .submit-btn:disabled { opacity: 0.45; pointer-events: none; }
+
+        /* ── DIVIDER ── */
+        .divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+        /* ── THANK YOU SCREEN ── */
+        .thanks-screen {
+            display: none;
+            text-align: center;
+            padding: 48px 24px 64px;
+        }
+        .thanks-screen.show { display: block; animation: fadeUp .5s ease; }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+        .thanks-icon { font-size: 80px; margin-bottom: 16px; animation: bounce .8s ease; }
+        @keyframes bounce { 0%,100%{transform:translateY(0)} 40%{transform:translateY(-22px)} 65%{transform:translateY(-10px)} }
+        .thanks-title { font-size: 28px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+        .thanks-sub   { font-size: 15px; color: var(--muted); margin-bottom: 32px; line-height: 1.6; }
+
+        .lifemiles-badge {
+            display: inline-flex; align-items: center; gap: 10px;
+            background: linear-gradient(135deg, #ffb300, #ff6f00);
+            border-radius: 16px; padding: 14px 24px;
+            font-size: 14px; font-weight: 700; color: #fff;
+            text-decoration: none;
+            box-shadow: 0 8px 24px rgba(255,179,0,0.4);
+            transition: all 0.25s;
+            margin-bottom: 12px;
+        }
+        .lifemiles-badge:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(255,179,0,0.5); }
+
+        .redirect-note { font-size: 12px; color: var(--muted); }
+        .countdown-pill {
+            display: inline-block;
+            background: rgba(21,101,192,0.1);
+            border-radius: 20px;
+            padding: 3px 12px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--blue);
+            margin-top: 8px;
+        }
+
+        /* ── FORM SCREEN ── */
+        #formScreen { display: block; }
+        #formScreen.hidden { display: none; }
+
+        /* Progress dots */
+        .progress-dots { display: flex; gap: 6px; justify-content: center; margin-bottom: 24px; }
+        .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: all 0.3s; }
+        .dot.active { width: 20px; border-radius: 3px; background: var(--blue); }
+        .dot.done { background: var(--success); }
+
+        @media (max-width: 400px) {
+            .star { font-size: 34px; }
+            .nps-btn { width: 34px; height: 34px; font-size: 11px; }
+        }
+    </style>
 </head>
 <body>
-  <div class="bg-grid"></div>
-  <div class="bg-radial"></div>
-  <div class="bg-stars"></div>
-  <div class="toast-container" id="toastContainer"></div>
 
-  <div class="app-wrapper feedback-page">
-
-    <!-- Header (no auth required) -->
-    <header class="app-header">
-      <div class="header-brand">
-        <div class="brand-logo">AV</div>
-        <div>
-          <div class="brand-name">Avianca</div>
-          <div class="brand-sub">Passenger Feedback</div>
+    <!-- HERO -->
+    <div class="hero">
+        <div class="lang-toggle">
+            <button class="lang-btn active" id="btnEN" onclick="setLang('en')">EN</button>
+            <button class="lang-btn" id="btnES" onclick="setLang('es')">ES</button>
         </div>
-      </div>
-      <div class="header-actions">
-        <div class="lang-switcher">
-          <button class="lang-btn active" id="btnES" onclick="setLang('es')">ES</button>
-          <button class="lang-btn" id="btnEN" onclick="setLang('en')">EN</button>
+        <div class="hero-logo">♿</div>
+        <div class="hero-title" id="heroTitle">How was your wheelchair service?</div>
+        <div class="hero-sub" id="heroSub">Your feedback helps us improve · Takes less than 60 seconds</div>
+    </div>
+
+    <!-- CARD -->
+    <div class="card-lift">
+
+        <!-- PROGRESS DOTS -->
+        <div class="progress-dots" id="progressDots">
+            <div class="dot active" id="dot0"></div>
+            <div class="dot" id="dot1"></div>
+            <div class="dot" id="dot2"></div>
+            <div class="dot" id="dot3"></div>
         </div>
-        <button class="theme-toggle" id="themeToggle" onclick="Theme.toggle()">
-          <span class="theme-icon moon">🌙</span>
-          <span class="theme-icon sun">☀️</span>
-        </button>
-      </div>
-    </header>
 
-    <main class="page-content page-enter">
+        <!-- FORM -->
+        <div id="formScreen">
 
-      <!-- Title -->
-      <div class="text-center mb-24">
-        <div class="page-title" id="fbTitle">Califica tu Experiencia</div>
-        <div class="page-meta" id="fbSubtitle">Tu opinión mejora nuestro servicio · SAL</div>
-      </div>
+            <!-- Q1: Overall rating -->
+            <div class="section star-question" id="q1">
+                <div class="star-q-text" id="q1text">Overall, how would you rate your wheelchair service experience?</div>
+                <div class="star-row" id="stars1">
+                    <span class="star" data-q="1" data-v="1" onclick="setStar(1,1)">⭐</span>
+                    <span class="star" data-q="1" data-v="2" onclick="setStar(1,2)">⭐</span>
+                    <span class="star" data-q="1" data-v="3" onclick="setStar(1,3)">⭐</span>
+                    <span class="star" data-q="1" data-v="4" onclick="setStar(1,4)">⭐</span>
+                    <span class="star" data-q="1" data-v="5" onclick="setStar(1,5)">⭐</span>
+                </div>
+            </div>
 
-      <!-- Overall Star Rating -->
-      <div class="glass-card p-20 mb-16">
-        <label class="form-label" id="labelOverall">Calificación General</label>
-        <div class="star-rating" id="ratingOverall">
-          <input type="radio" name="ratingOverall" id="s5" value="5"/><label for="s5">★</label>
-          <input type="radio" name="ratingOverall" id="s4" value="4"/><label for="s4">★</label>
-          <input type="radio" name="ratingOverall" id="s3" value="3"/><label for="s3">★</label>
-          <input type="radio" name="ratingOverall" id="s2" value="2"/><label for="s2">★</label>
-          <input type="radio" name="ratingOverall" id="s1" value="1"/><label for="s1">★</label>
-        </div>
-      </div>
+            <div class="divider"></div>
 
-      <!-- Time Rating -->
-      <div class="glass-card p-20 mb-16">
-        <label class="form-label" id="labelTime">Tiempo de Espera</label>
-        <p class="text-muted mb-16" id="hintTime" style="font-size:12px;">¿Cómo fue el tiempo de espera para el servicio?</p>
-        <div class="star-rating" id="ratingTime">
-          <input type="radio" name="ratingTime" id="t5" value="5"/><label for="t5">★</label>
-          <input type="radio" name="ratingTime" id="t4" value="4"/><label for="t4">★</label>
-          <input type="radio" name="ratingTime" id="t3" value="3"/><label for="t3">★</label>
-          <input type="radio" name="ratingTime" id="t2" value="2"/><label for="t2">★</label>
-          <input type="radio" name="ratingTime" id="t1" value="1"/><label for="t1">★</label>
-        </div>
-      </div>
+            <!-- Q2: Agent attitude -->
+            <div class="section star-question" id="q2">
+                <div class="star-q-text" id="q2text">How did you find the attitude and friendliness of the agent?</div>
+                <div class="star-row" id="stars2">
+                    <span class="star" data-q="2" data-v="1" onclick="setStar(2,1)">⭐</span>
+                    <span class="star" data-q="2" data-v="2" onclick="setStar(2,2)">⭐</span>
+                    <span class="star" data-q="2" data-v="3" onclick="setStar(2,3)">⭐</span>
+                    <span class="star" data-q="2" data-v="4" onclick="setStar(2,4)">⭐</span>
+                    <span class="star" data-q="2" data-v="5" onclick="setStar(2,5)">⭐</span>
+                </div>
+            </div>
 
-      <!-- Kindness Rating -->
-      <div class="glass-card p-20 mb-16">
-        <label class="form-label" id="labelKind">Amabilidad del Agente</label>
-        <p class="text-muted mb-16" id="hintKind" style="font-size:12px;">¿Cómo fue el trato recibido por parte del agente?</p>
-        <div class="star-rating" id="ratingKind">
-          <input type="radio" name="ratingKind" id="k5" value="5"/><label for="k5">★</label>
-          <input type="radio" name="ratingKind" id="k4" value="4"/><label for="k4">★</label>
-          <input type="radio" name="ratingKind" id="k3" value="3"/><label for="k3">★</label>
-          <input type="radio" name="ratingKind" id="k2" value="2"/><label for="k2">★</label>
-          <input type="radio" name="ratingKind" id="k1" value="1"/><label for="k1">★</label>
-        </div>
-      </div>
+            <div class="divider"></div>
 
-      <!-- Comments -->
-      <div class="glass-card p-20 mb-20">
-        <label class="form-label" id="labelComments">Comentarios</label>
-        <textarea class="form-input" id="fbComments" rows="4" id="fbComments"
-          placeholder="Cuéntanos más sobre tu experiencia..."></textarea>
-      </div>
+            <!-- Q3: Wait time -->
+            <div class="section star-question" id="q3">
+                <div class="star-q-text" id="q3text">How satisfied were you with the wait time?</div>
+                <div class="star-row" id="stars3">
+                    <span class="star" data-q="3" data-v="1" onclick="setStar(3,1)">⭐</span>
+                    <span class="star" data-q="3" data-v="2" onclick="setStar(3,2)">⭐</span>
+                    <span class="star" data-q="3" data-v="3" onclick="setStar(3,3)">⭐</span>
+                    <span class="star" data-q="3" data-v="4" onclick="setStar(3,4)">⭐</span>
+                    <span class="star" data-q="3" data-v="5" onclick="setStar(3,5)">⭐</span>
+                </div>
+            </div>
 
-      <!-- Submit -->
-      <button class="btn btn-primary" id="submitBtn" onclick="submitFeedback()">
-        <span id="submitText">⭐ Enviar Calificación</span>
-      </button>
+            <div class="divider"></div>
 
-      <!-- Thank you state (hidden) -->
-      <div class="hidden" id="thankYouState">
-        <div class="glass-card p-20 text-center" style="animation: pageEnter 0.5s var(--ease-spring);">
-          <div style="font-size:64px;margin-bottom:16px;">🎉</div>
-          <div class="page-title" id="thankTitle" style="margin-bottom:8px;">¡Gracias por tu opinión!</div>
-          <p class="text-muted" id="thankSubtitle">Tu feedback es muy valioso para mejorar nuestro servicio.</p>
-          <div style="margin-top:24px;padding:16px;background:var(--surface-2);border-radius:12px;">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/LifeMiles_logo.svg/320px-LifeMiles_logo.svg.png"
-                 alt="LifeMiles" style="height:32px;object-fit:contain;opacity:0.8;" onerror="this.style.display='none'"/>
-            <p class="text-muted" id="redirectMsg" style="margin-top:8px;font-size:12px;">
-              Redirigiendo a LifeMiles en <strong id="countdown">3</strong>s...
+            <!-- Q4: Improvement chips -->
+            <div class="section" id="q4">
+                <div class="section-label" id="q4label">What could we improve?</div>
+                <div class="star-q-text" id="q4text">Select all that apply (optional)</div>
+                <div class="chip-grid" id="chipGrid">
+                    <div class="chip" data-key="wait" onclick="toggleChip(this)"><span class="chip-txt" data-en="Shorter wait time" data-es="Menos tiempo de espera">Shorter wait time</span></div>
+                    <div class="chip" data-key="friendly" onclick="toggleChip(this)"><span class="chip-txt" data-en="More friendliness" data-es="Más amabilidad">More friendliness</span></div>
+                    <div class="chip" data-key="comfort" onclick="toggleChip(this)"><span class="chip-txt" data-en="Wheelchair comfort" data-es="Comodidad de la silla">Wheelchair comfort</span></div>
+                    <div class="chip" data-key="communication" onclick="toggleChip(this)"><span class="chip-txt" data-en="Better communication" data-es="Mejor comunicación">Better communication</span></div>
+                    <div class="chip" data-key="route" onclick="toggleChip(this)"><span class="chip-txt" data-en="Faster route" data-es="Ruta más rápida">Faster route</span></div>
+                    <div class="chip" data-key="nothing" onclick="toggleChip(this)"><span class="chip-txt" data-en="Nothing — it was great!" data-es="Nada — ¡fue excelente!">Nothing — it was great!</span></div>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Q5: NPS -->
+            <div class="section" id="q5">
+                <div class="star-q-text" id="q5text">How likely are you to recommend our wheelchair service to others?</div>
+                <div class="nps-row" id="npsRow">
+                    <button class="nps-btn" data-v="0" onclick="setNPS(0)">0</button>
+                    <button class="nps-btn" data-v="1" onclick="setNPS(1)">1</button>
+                    <button class="nps-btn" data-v="2" onclick="setNPS(2)">2</button>
+                    <button class="nps-btn" data-v="3" onclick="setNPS(3)">3</button>
+                    <button class="nps-btn" data-v="4" onclick="setNPS(4)">4</button>
+                    <button class="nps-btn" data-v="5" onclick="setNPS(5)">5</button>
+                    <button class="nps-btn" data-v="6" onclick="setNPS(6)">6</button>
+                    <button class="nps-btn" data-v="7" onclick="setNPS(7)">7</button>
+                    <button class="nps-btn" data-v="8" onclick="setNPS(8)">8</button>
+                    <button class="nps-btn" data-v="9" onclick="setNPS(9)">9</button>
+                    <button class="nps-btn" data-v="10" onclick="setNPS(10)">10</button>
+                </div>
+                <div class="nps-labels">
+                    <span id="npsLow">Not likely</span>
+                    <span id="npsHigh">Very likely</span>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Q6: Comments -->
+            <div class="section" id="q6">
+                <div class="section-label" id="q6label">Additional comments</div>
+                <textarea class="feedback-area" id="comments" placeholder="Tell us more (optional)…" rows="3"></textarea>
+            </div>
+
+            <button class="submit-btn" id="submitBtn" onclick="submitFeedback()">
+                <span id="submitBtnText">Submit Feedback →</span>
+            </button>
+
+            <p style="text-align:center;font-size:11px;color:var(--muted);margin-top:14px;" id="privacyNote">
+                Your response is anonymous and helps us improve our service.
             </p>
-          </div>
+
         </div>
-      </div>
 
-    </main>
-  </div>
+        <!-- THANK YOU -->
+        <div class="thanks-screen" id="thanksScreen">
+            <div class="thanks-icon">🌟</div>
+            <div class="thanks-title" id="thanksTitle">Thank you!</div>
+            <div class="thanks-sub" id="thanksSub">
+                Your feedback means a lot to us.<br>
+                We're constantly working to make your<br>
+                travel experience even better.
+            </div>
+            <a href="https://www.lifemiles.com/landing/clublm" class="lifemiles-badge" id="lifemilesBtn">
+                ✈️ <span id="lifemilesBtnText">Discover LifeMiles Club</span>
+            </a>
+            <br>
+            <div class="redirect-note" id="redirectNote">You will be redirected automatically in</div>
+            <div class="countdown-pill" id="countdown">5s</div>
+        </div>
 
-  <script src="app.js"></script>
-  <script>
-    const TEXTS = {
-      es: {
-        title: 'Califica tu Experiencia',
-        subtitle: 'Tu opinión mejora nuestro servicio · SAL',
-        labelOverall: 'CALIFICACIÓN GENERAL',
-        labelTime: 'TIEMPO DE ESPERA',
-        hintTime: '¿Cómo fue el tiempo de espera para el servicio?',
-        labelKind: 'AMABILIDAD DEL AGENTE',
-        hintKind: '¿Cómo fue el trato recibido por parte del agente?',
-        labelComments: 'COMENTARIOS',
-        placeholderComments: 'Cuéntanos más sobre tu experiencia...',
-        submitText: '⭐ Enviar Calificación',
-        thankTitle: '¡Gracias por tu opinión!',
-        thankSubtitle: 'Tu feedback es muy valioso para mejorar nuestro servicio.',
-        redirectMsg: 'Redirigiendo a LifeMiles en',
-        countdownSuffix: 's...',
-        errorRating: 'Por favor selecciona una calificación general',
-        sending: 'Enviando...'
-      },
-      en: {
-        title: 'Rate Your Experience',
-        subtitle: 'Your feedback improves our service · SAL',
-        labelOverall: 'OVERALL RATING',
-        labelTime: 'WAIT TIME',
-        hintTime: 'How was the waiting time for the service?',
-        labelKind: 'AGENT KINDNESS',
-        hintKind: 'How was the treatment received from the agent?',
-        labelComments: 'COMMENTS',
-        placeholderComments: 'Tell us more about your experience...',
-        submitText: '⭐ Submit Rating',
-        thankTitle: 'Thank you for your feedback!',
-        thankSubtitle: 'Your feedback is valuable to improve our service.',
-        redirectMsg: 'Redirecting to LifeMiles in',
-        countdownSuffix: 's...',
-        errorRating: 'Please select an overall rating',
-        sending: 'Sending...'
-      }
-    };
+    </div><!-- /card-lift -->
 
-    let lang = 'es';
+    <script>
+        // ── LANGUAGE ──
+        let lang = 'en';
+        const T = {
+            en: {
+                heroTitle: 'How was your wheelchair service?',
+                heroSub: 'Your feedback helps us improve · Takes less than 60 seconds',
+                q1: 'Overall, how would you rate your wheelchair service experience?',
+                q2: 'How did you find the attitude and friendliness of the agent?',
+                q3: 'How satisfied were you with the wait time?',
+                q4label: 'What could we improve?',
+                q4: 'Select all that apply (optional)',
+                q5: 'How likely are you to recommend our wheelchair service to others?',
+                q6label: 'Additional comments',
+                q6ph: 'Tell us more (optional)…',
+                npsLow: 'Not likely', npsHigh: 'Very likely',
+                submit: 'Submit Feedback →',
+                privacy: 'Your response is anonymous and helps us improve our service.',
+                thanksTitle: 'Thank you!',
+                thanksSub: 'Your feedback means a lot to us.\nWe\'re constantly working to make your\ntravel experience even better.',
+                lifemiles: 'Discover LifeMiles Club',
+                redirectNote: 'You will be redirected automatically in',
+            },
+            es: {
+                heroTitle: '¿Cómo fue su servicio de silla de ruedas?',
+                heroSub: 'Su opinión nos ayuda a mejorar · Menos de 60 segundos',
+                q1: '¿Cómo calificaría su experiencia general con el servicio de silla de ruedas?',
+                q2: '¿Cómo encontró la actitud y amabilidad del agente?',
+                q3: '¿Qué tan satisfecho estuvo con el tiempo de espera?',
+                q4label: '¿Qué podríamos mejorar?',
+                q4: 'Seleccione todas las que apliquen (opcional)',
+                q5: '¿Qué tan probable es que recomiende nuestro servicio de silla de ruedas?',
+                q6label: 'Comentarios adicionales',
+                q6ph: 'Cuéntenos más (opcional)…',
+                npsLow: 'Poco probable', npsHigh: 'Muy probable',
+                submit: 'Enviar Comentarios →',
+                privacy: 'Su respuesta es anónima y nos ayuda a mejorar el servicio.',
+                thanksTitle: '¡Gracias!',
+                thanksSub: 'Su opinión es muy valiosa para nosotros.\nSeguimos trabajando para hacer\nsu viaje aún mejor.',
+                lifemiles: 'Descubrir Club LifeMiles',
+                redirectNote: 'Será redirigido automáticamente en',
+            }
+        };
 
-    function setLang(l) {
-      lang = l;
-      const t = TEXTS[l];
-      document.documentElement.lang = l;
+        function setLang(l) {
+            lang = l;
+            document.getElementById('btnEN').classList.toggle('active', l === 'en');
+            document.getElementById('btnES').classList.toggle('active', l === 'es');
+            const t = T[l];
+            document.getElementById('heroTitle').textContent = t.heroTitle;
+            document.getElementById('heroSub').textContent = t.heroSub;
+            document.getElementById('q1text').textContent = t.q1;
+            document.getElementById('q2text').textContent = t.q2;
+            document.getElementById('q3text').textContent = t.q3;
+            document.getElementById('q4label').textContent = t.q4label;
+            document.getElementById('q4text').textContent = t.q4;
+            document.getElementById('q5text').textContent = t.q5;
+            document.getElementById('q6label').textContent = t.q6label;
+            document.getElementById('comments').placeholder = t.q6ph;
+            document.getElementById('npsLow').textContent = t.npsLow;
+            document.getElementById('npsHigh').textContent = t.npsHigh;
+            document.getElementById('submitBtnText').textContent = t.submit;
+            document.getElementById('privacyNote').textContent = t.privacy;
+            // Chips
+            document.querySelectorAll('.chip-txt').forEach(el => {
+                el.textContent = el.dataset[l];
+            });
+            // Thanks
+            document.getElementById('thanksTitle').textContent = t.thanksTitle;
+            document.getElementById('thanksSub').innerHTML = t.thanksSub.replace(/\n/g, '<br>');
+            document.getElementById('lifemilesBtnText').textContent = t.lifemiles;
+            document.getElementById('redirectNote').textContent = t.redirectNote;
+        }
 
-      document.getElementById('btnES').classList.toggle('active', l === 'es');
-      document.getElementById('btnEN').classList.toggle('active', l === 'en');
+        // ── STAR RATINGS ──
+        const ratings = { 1: 0, 2: 0, 3: 0 };
 
-      document.getElementById('fbTitle').textContent = t.title;
-      document.getElementById('fbSubtitle').textContent = t.subtitle;
-      document.getElementById('labelOverall').textContent = t.labelOverall;
-      document.getElementById('labelTime').textContent = t.labelTime;
-      document.getElementById('hintTime').textContent = t.hintTime;
-      document.getElementById('labelKind').textContent = t.labelKind;
-      document.getElementById('hintKind').textContent = t.hintKind;
-      document.getElementById('labelComments').textContent = t.labelComments;
-      document.getElementById('fbComments').placeholder = t.placeholderComments;
-      document.getElementById('submitText').textContent = t.submitText;
-    }
+        function setStar(q, v) {
+            ratings[q] = v;
+            const stars = document.querySelectorAll(`#stars${q} .star`);
+            stars.forEach((s, i) => {
+                s.classList.toggle('active', i < v);
+                s.classList.remove('hover-preview');
+            });
+            updateDots();
+        }
 
-    function submitFeedback() {
-      const t = TEXTS[lang];
-      const overall = document.querySelector('input[name="ratingOverall"]:checked')?.value;
-      const time = document.querySelector('input[name="ratingTime"]:checked')?.value;
-      const kind = document.querySelector('input[name="ratingKind"]:checked')?.value;
-      const comments = document.getElementById('fbComments').value.trim();
+        // Hover preview
+        document.addEventListener('DOMContentLoaded', () => {
+            [1, 2, 3].forEach(q => {
+                const stars = document.querySelectorAll(`#stars${q} .star`);
+                stars.forEach((s, i) => {
+                    s.addEventListener('mouseenter', () => {
+                        stars.forEach((ss, j) => ss.classList.toggle('hover-preview', j <= i && ratings[q] === 0));
+                    });
+                    s.addEventListener('mouseleave', () => {
+                        stars.forEach(ss => ss.classList.remove('hover-preview'));
+                    });
+                });
+            });
+        });
 
-      if (!overall) { Toast.error(t.errorRating); return; }
+        // ── CHIPS ──
+        const selectedChips = new Set();
+        function toggleChip(el) {
+            const key = el.dataset.key;
+            el.classList.toggle('selected');
+            if (el.classList.contains('selected')) selectedChips.add(key);
+            else selectedChips.delete(key);
+        }
 
-      const btn = document.getElementById('submitBtn');
-      const btnText = document.getElementById('submitText');
-      btn.disabled = true;
-      btnText.innerHTML = `<span class="loader"></span> ${t.sending}`;
+        // ── NPS ──
+        let npsVal = -1;
+        function setNPS(v) {
+            npsVal = v;
+            document.querySelectorAll('.nps-btn').forEach(btn => {
+                btn.classList.remove('selected', 'low', 'mid', 'high');
+                if (parseInt(btn.dataset.v) === v) {
+                    btn.classList.add('selected');
+                    btn.classList.add(v <= 6 ? 'low' : v <= 8 ? 'mid' : 'high');
+                }
+            });
+            updateDots();
+        }
 
-      // Save feedback (tied to service if ID param present)
-      const urlParams = new URLSearchParams(window.location.search);
-      const serviceId = urlParams.get('id');
+        // ── PROGRESS DOTS ──
+        function updateDots() {
+            const filled = (ratings[1] > 0 ? 1 : 0) + (ratings[2] > 0 ? 1 : 0) + (ratings[3] > 0 ? 1 : 0) + (npsVal >= 0 ? 1 : 0);
+            for (let i = 0; i < 4; i++) {
+                const dot = document.getElementById('dot' + i);
+                dot.classList.toggle('done', i < filled);
+                dot.classList.toggle('active', i === filled && filled < 4);
+            }
+        }
 
-      const feedbackData = {
-        serviceId,
-        overall: parseInt(overall),
-        time: time ? parseInt(time) : null,
-        kind: kind ? parseInt(kind) : null,
-        comments,
-        lang,
-        submittedAt: new Date().toISOString()
-      };
+        // ── SUBMIT ──
+        function submitFeedback() {
+            if (ratings[1] === 0) {
+                alert(lang === 'en' ? 'Please rate the overall experience.' : 'Por favor califique la experiencia general.');
+                return;
+            }
 
-      // Save locally
-      const key = `${APP_KEY}_feedback_${serviceId || Date.now()}`;
-      localStorage.setItem(key, JSON.stringify(feedbackData));
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerHTML = `<span>${lang === 'en' ? 'Sending…' : 'Enviando…'}</span>`;
 
-      setTimeout(() => {
-        // Show thank you
-        document.getElementById('submitBtn').classList.add('hidden');
-        document.getElementById('thankYouState').classList.remove('hidden');
-        document.getElementById('thankTitle').textContent = TEXTS[lang].thankTitle;
-        document.getElementById('thankSubtitle').textContent = TEXTS[lang].thankSubtitle;
+            // Mark all dots done
+            for (let i = 0; i < 4; i++) {
+                const dot = document.getElementById('dot' + i);
+                dot.classList.add('done'); dot.classList.remove('active');
+            }
 
-        // Countdown redirect
-        let secs = 3;
-        document.getElementById('countdown').textContent = secs;
-        document.getElementById('redirectMsg').querySelector('strong').textContent = secs;
+            // In a real implementation you'd POST to a backend/sheet here
+            setTimeout(() => {
+                showThanks();
+            }, 800);
+        }
 
-        const iv = setInterval(() => {
-          secs--;
-          const el = document.getElementById('countdown');
-          if (el) el.textContent = secs;
-          if (secs <= 0) {
-            clearInterval(iv);
-            window.location.href = 'https://www.lifemiles.com/landing/clublm';
-          }
-        }, 1000);
-      }, 1200);
-    }
+        function showThanks() {
+            document.getElementById('formScreen').classList.add('hidden');
+            const ts = document.getElementById('thanksScreen');
+            ts.classList.add('show');
 
-    // Auto-detect browser language
-    const browserLang = navigator.language?.startsWith('en') ? 'en' : 'es';
-    setLang(browserLang);
-  </script>
+            // Countdown redirect
+            let count = 5;
+            const cntEl = document.getElementById('countdown');
+            const interval = setInterval(() => {
+                count--;
+                cntEl.textContent = count + 's';
+                if (count <= 0) {
+                    clearInterval(interval);
+                    window.location.href = 'https://www.lifemiles.com/landing/clublm';
+                }
+            }, 1000);
+        }
+    </script>
 </body>
 </html>
