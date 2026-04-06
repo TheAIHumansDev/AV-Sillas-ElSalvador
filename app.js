@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════
-   AVIANCA SAL · WHEELCHAIR SERVICE MONITOR
+ WHEELCHAIR SERVICE MONITOR
    app.js · Core Application Logic
 ═══════════════════════════════════════════ */
 
@@ -152,7 +152,8 @@ const TimeUtil = {
 const Toast = {
   _container: null,
   init() {
-    if (document.getElementById('toastContainer')) return;
+    const existing = document.getElementById('toastContainer');
+    if (existing) { this._container = existing; return; }
     this._container = document.createElement('div');
     this._container.id = 'toastContainer';
     this._container.className = 'toast-container';
