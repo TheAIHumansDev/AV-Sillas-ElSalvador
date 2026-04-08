@@ -1,0 +1,1540 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Silla · Avianca SAL</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        :root {
+            --red:      #e8001d;
+            --red2:     #c0001a;
+            --red3:     #ff3347;
+            --red-dim:  rgba(232,0,29,0.16);
+            --green:    #00dc82;
+            --green2:   #00b36b;
+            --gold:     #f59e0b;
+            --gold2:    #fbbf24;
+            --bg:       #06080f;
+            --surface:  rgba(13,18,40,0.9);
+            --border:   rgba(232,0,29,0.18);
+            --text:     #f0f2f8;
+            --muted:    #64748b;
+            --card-bg:  rgba(10,14,32,0.93);
+        }
+
+        body {
+            font-family: 'Syne', sans-serif;
+            background: var(--bg);
+            min-height: 100vh; min-height: 100dvh;
+            color: var(--text);
+            overflow-x: hidden;
+        }
+
+        #canvas-container {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; z-index: 1;
+            pointer-events: none;
+        }
+
+        .app-shell {
+            position: relative; z-index: 2;
+            min-height: 100vh; min-height: 100dvh;
+            display: flex; flex-direction: column;
+            max-width: 480px; margin: 0 auto;
+        }
+
+        /* ── HEADER ── */
+        .app-header {
+            background: rgba(6,8,15,0.95);
+            backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 16px 0;
+            position: sticky; top: 0; z-index: 20; flex-shrink: 0;
+        }
+        .header-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+        .header-brand { display: flex; align-items: center; gap: 10px; }
+        .brand-icon {
+            width: 34px; height: 34px; border-radius: 10px;
+            background: linear-gradient(135deg, var(--red), var(--red2));
+            display: flex; align-items: center; justify-content: center; font-size: 18px;
+            box-shadow: 0 4px 16px rgba(232,0,29,0.45);
+        }
+        .brand-text {
+            font-size: 15px; font-weight: 800;
+            background: linear-gradient(135deg, var(--red3), #ff8c96);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .brand-sub { font-size: 9px; color: var(--muted); font-family: 'JetBrains Mono',monospace; letter-spacing: 2px; text-transform: uppercase; }
+
+        .header-actions { display: flex; align-items: center; gap: 6px; }
+        .user-chip {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(232,0,29,0.06); border: 1px solid var(--border);
+            border-radius: 20px; padding: 4px 10px 4px 4px;
+        }
+        .user-chip .av {
+            width: 24px; height: 24px; border-radius: 50%;
+            background: linear-gradient(135deg,var(--red),var(--red2));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0;
+        }
+        .user-chip .un { font-size: 11px; font-weight: 600; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .btn-small {
+            border-radius: 8px; padding: 5px 10px;
+            font-size: 11px; font-weight: 600; cursor: pointer;
+            font-family: 'Syne',sans-serif; white-space: nowrap; transition: background 0.2s; border: 1px solid;
+        }
+        .btn-hist   { background: rgba(232,0,29,0.1);  border-color: rgba(232,0,29,0.3);  color: #ff8c96; }
+        .btn-hist:hover { background: rgba(232,0,29,0.2); }
+        .btn-logout { background: rgba(100,116,139,0.1); border-color: rgba(100,116,139,0.3); color: #94a3b8; }
+        .btn-logout:hover { background: rgba(100,116,139,0.2); }
+
+        /* PROGRESS */
+        .progress-wrap { height: 3px; background: rgba(232,0,29,0.08); overflow: hidden; }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg,var(--red2),var(--red3),#ff6b7a);
+            transition: width 0.55s cubic-bezier(0.4,0,0.2,1);
+            width: 0%;
+        }
+        .step-counter {
+            text-align: center; color: var(--muted);
+            font-size: 10px; font-family: 'JetBrains Mono',monospace;
+            padding: 6px 0 8px; letter-spacing: 1.5px;
+        }
+
+        /* RESUME BANNER */
+        .resume-banner {
+            background: rgba(0,220,130,0.08); border: 1px solid rgba(0,220,130,0.28);
+            border-radius: 10px; padding: 9px 14px; margin: 10px 16px 0;
+            display: none; align-items: center; gap: 8px; font-size: 12px;
+        }
+        .resume-banner.show { display: flex; animation: fadeIn .3s ease; }
+        .resume-badge {
+            background: var(--green); color: #000; border-radius: 5px;
+            padding: 2px 7px; font-size: 9px; font-weight: 700;
+            font-family: 'JetBrains Mono',monospace; flex-shrink: 0; letter-spacing: 1px;
+        }
+
+        /* CONTENT */
+        .app-content {
+            flex: 1; overflow-y: auto; overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            padding: 18px 16px 60px;
+        }
+        .app-content::-webkit-scrollbar { width: 3px; }
+        .app-content::-webkit-scrollbar-thumb { background: rgba(232,0,29,0.25); border-radius: 2px; }
+
+        /* CARDS */
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+            border: 1px solid var(--border); border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 50px rgba(232,0,29,0.03);
+            overflow: hidden;
+        }
+        .section-block { margin-bottom: 14px; }
+
+        /* FLIGHT FORM */
+        .flight-card { padding: 22px 20px; }
+        .card-title { font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 5px; display: flex; align-items: center; gap: 9px; }
+        .card-subtitle { font-size: 12px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; color: #cbd5e1; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+        .input-field {
+            width: 100%; padding: 12px 15px;
+            background: rgba(16,22,50,0.65); border: 1px solid rgba(232,0,29,0.2);
+            border-radius: 11px; color: #fff; font-size: 14px; outline: none;
+            transition: all 0.25s; font-family: 'Syne',sans-serif;
+        }
+        .input-field:focus { border-color: var(--red); background: rgba(16,22,50,0.9); box-shadow: 0 0 0 3px rgba(232,0,29,0.1); }
+        .input-field::placeholder { color: #3d4a66; }
+        select.input-field { cursor: pointer; }
+        select.input-field option { background: #0d1020; color: #fff; }
+
+        .btn-primary {
+            width: 100%; padding: 15px;
+            background: linear-gradient(135deg,var(--red),var(--red2));
+            border: none; border-radius: 12px; color: #fff;
+            font-size: 15px; font-weight: 700; cursor: pointer;
+            font-family: 'Syne',sans-serif; transition: all 0.25s; margin-top: 4px;
+            box-shadow: 0 6px 22px rgba(232,0,29,0.35);
+            position: relative; overflow: hidden;
+        }
+        .btn-primary::before {
+            content:''; position:absolute; top:0; left:-100%; width:100%; height:100%;
+            background: linear-gradient(90deg,transparent,rgba(255,255,255,0.12),transparent);
+            transition: left 0.5s;
+        }
+        .btn-primary:hover::before { left: 100%; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(232,0,29,0.45); }
+        .btn-primary:active { opacity: 0.85; transform: none; }
+        .btn-primary:disabled { opacity: 0.45; pointer-events: none; }
+
+        /* FLIGHT CHIP */
+        .flight-info-chip {
+            display: none;
+            background: rgba(16,22,50,0.7); border: 1px solid rgba(232,0,29,0.2);
+            border-radius: 14px; padding: 12px 15px; margin-bottom: 14px;
+            align-items: center; gap: 12px;
+        }
+        .flight-info-chip.show { display: flex; animation: slideDown 0.35s ease; }
+        @keyframes slideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+        .fic-icon { font-size: 24px; flex-shrink: 0; }
+        .fic-body { flex: 1; min-width: 0; }
+        .fic-top { font-size: 14px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .fic-bot { font-size: 10px; color: var(--muted); font-family: 'JetBrains Mono',monospace; margin-top: 2px; }
+        .fic-badge { font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 6px; font-family: 'JetBrains Mono',monospace; flex-shrink: 0; }
+        .fic-badge.sala        { background: rgba(59,130,246,0.18); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3); }
+        .fic-badge.abordaje    { background: rgba(0,220,130,0.14);  color: #6ee7b7; border: 1px solid rgba(0,220,130,0.3); }
+        .fic-badge.desabordaje { background: rgba(245,158,11,0.16); color: #fcd34d; border: 1px solid rgba(245,158,11,0.3); }
+        .fic-badge.otro        { background: rgba(168,85,247,0.14); color: #c4b5fd; border: 1px solid rgba(168,85,247,0.3); }
+
+        /* TRAMO BUTTONS */
+        .tramo-group { display: flex; flex-direction: column; gap: 8px; }
+        .tramo-btn {
+            width: 100%; padding: 13px 16px;
+            background: rgba(16,22,50,0.65); border: 1.5px solid rgba(232,0,29,0.18);
+            border-radius: 12px; color: var(--text);
+            cursor: pointer; font-family: 'Syne',sans-serif;
+            transition: all 0.22s;
+            display: flex; align-items: center; justify-content: center;
+            gap: 6px; flex-wrap: nowrap;
+        }
+        .tramo-btn:hover { border-color: rgba(232,0,29,0.45); background: rgba(232,0,29,0.06); }
+        .tramo-btn.selected {
+            background: rgba(232,0,29,0.13); border-color: var(--red);
+            box-shadow: 0 0 14px rgba(232,0,29,0.14);
+        }
+        .tramo-icon { font-size: 18px; flex-shrink: 0; }
+        .tramo-name { font-size: 12px; font-weight: 700; }
+        .tramo-arrow { font-size: 14px; color: var(--muted); flex-shrink: 0; }
+
+        /* PASSENGER LIST (relevo) */
+        .passenger-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+        .passenger-card {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 14px; border-radius: 12px;
+            background: rgba(16,22,50,0.6); border: 1.5px solid rgba(232,0,29,0.16);
+            cursor: pointer; transition: all 0.22s;
+        }
+        .passenger-card:hover { border-color: rgba(232,0,29,0.45); background: rgba(232,0,29,0.07); }
+        .passenger-card.selected {
+            border-color: var(--green); background: rgba(0,220,130,0.08);
+            box-shadow: 0 0 12px rgba(0,220,130,0.12);
+        }
+        .passenger-card .pc-avatar {
+            width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+            background: linear-gradient(135deg,var(--red),var(--red2));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700; color: #fff;
+        }
+        .passenger-card.selected .pc-avatar { background: linear-gradient(135deg,var(--green),var(--green2)); }
+        .passenger-card .pc-body { flex: 1; min-width: 0; }
+        .passenger-card .pc-name { font-size: 13px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .passenger-card .pc-meta { font-size: 10px; color: var(--muted); font-family: 'JetBrains Mono',monospace; margin-top: 2px; }
+        .passenger-card .pc-check { font-size: 20px; color: var(--green); opacity: 0; transition: opacity 0.25s; flex-shrink: 0; }
+        .passenger-card.selected .pc-check { opacity: 1; }
+
+        /* RELEVO STATUS */
+        .relevo-loading { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; padding: 14px 0; font-family: 'JetBrains Mono',monospace; }
+        .relevo-spinner { width: 16px; height: 16px; border: 2px solid rgba(232,0,29,0.2); border-top-color: var(--red); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+        .relevo-empty { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.28); border-radius: 10px; padding: 12px 14px; font-size: 12px; color: #fcd34d; line-height: 1.5; }
+
+        /* RELEVO DATA SUMMARY */
+        .relevo-data-card {
+            background: rgba(0,220,130,0.06); border: 1px solid rgba(0,220,130,0.2);
+            border-radius: 12px; padding: 12px 14px; margin-top: 10px;
+        }
+        .relevo-data-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 5px 0; border-bottom: 1px solid rgba(0,220,130,0.08);
+            font-size: 12px;
+        }
+        .relevo-data-row:last-child { border-bottom: none; }
+        .relevo-data-row span { color: var(--muted); }
+        .relevo-data-row strong { color: #fff; font-family: 'JetBrains Mono',monospace; font-size: 11px; }
+
+        /* FORM SECTION DIVIDER */
+        
+        .form-section-divider {
+            display: flex; align-items: center; gap: 10px;
+            margin: 18px 0 14px;
+        }
+        .form-section-divider span {
+            font-size: 10px; font-weight: 700; letter-spacing: 2px;
+            text-transform: uppercase; color: var(--muted);
+            font-family: 'JetBrains Mono',monospace; white-space: nowrap;
+        }
+        .form-section-divider::before, .form-section-divider::after {
+            content:''; flex:1; height:1px; background: rgba(232,0,29,0.15);
+        }
+
+        /* YES/NO TOGGLE */
+        .toggle-group { display: flex; gap: 8px; }
+        .toggle-btn {
+            flex: 1; padding: 11px 8px;
+            background: rgba(16,22,50,0.65); border: 1.5px solid rgba(232,0,29,0.18);
+            border-radius: 10px; color: var(--muted);
+            font-size: 13px; font-weight: 700; cursor: pointer;
+            font-family: 'Syne',sans-serif; transition: all 0.22s; text-align: center;
+        }
+        .toggle-btn:hover { border-color: rgba(232,0,29,0.4); color: var(--text); }
+        .toggle-btn.selected-yes {
+            background: rgba(0,220,130,0.14); border-color: var(--green);
+            color: var(--green); box-shadow: 0 0 10px rgba(0,220,130,0.15);
+        }
+        .toggle-btn.selected-no {
+            background: rgba(232,0,29,0.12); border-color: var(--red);
+            color: var(--red3); box-shadow: 0 0 10px rgba(232,0,29,0.12);
+        }
+
+        /* WCH TYPE CHIPS */
+        .wch-type-group { display: flex; gap: 8px; }
+        .wch-type-btn {
+            flex: 1; padding: 11px 6px;
+            background: rgba(16,22,50,0.65); border: 1.5px solid rgba(232,0,29,0.18);
+            border-radius: 10px; color: var(--muted);
+            cursor: pointer; font-family: 'JetBrains Mono',monospace;
+            transition: all 0.22s; text-align: center; line-height: 1.35;
+        }
+        .wch-type-btn .wch-code { font-size: 14px; font-weight: 800; display: block; color: var(--text); }
+        .wch-type-btn .wch-desc { font-size: 9px; font-weight: 500; color: var(--muted); letter-spacing: 0.2px; display: block; margin-top: 2px; }
+        .wch-type-btn:hover { border-color: rgba(232,0,29,0.4); }
+        .wch-type-btn.selected {
+            background: rgba(232,0,29,0.13); border-color: var(--red);
+            box-shadow: 0 0 12px rgba(232,0,29,0.14);
+        }
+        .wch-type-btn.selected .wch-code { color: var(--red3); }
+        .wch-type-btn.selected .wch-desc { color: rgba(255,100,100,0.65); }
+
+        /* TIMELINE */
+        .timeline-card { padding: 20px 18px 22px; display: none; }
+        .timeline-card.show { display: block; }
+        .timeline-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .timeline-title { font-size: 15px; font-weight: 800; color: #fff; }
+        .prog-pill {
+            background: rgba(100,116,139,0.15); border: 1px solid rgba(100,116,139,0.25);
+            border-radius: 10px; padding: 3px 10px;
+            font-size: 10px; color: var(--muted); font-weight: 700;
+            font-family: 'JetBrains Mono',monospace; transition: all 0.4s;
+        }
+
+        /* CONNECTOR */
+        .checkpoint-wrapper { position: relative; }
+        .connector {
+            position: absolute; left: 19px; top: 50px;
+            width: 2px; height: calc(100% - 12px);
+            background: rgba(100,116,139,0.16); border-radius: 1px; overflow: hidden; z-index: 0;
+        }
+        .connector-fill {
+            position: absolute; top: 0; left: 0; width: 100%; height: 0%;
+            border-radius: 1px;
+            background: linear-gradient(180deg,var(--green),var(--green2));
+            transition: height 0.75s cubic-bezier(0.4,0,0.2,1);
+        }
+        .connector.active .connector-fill { height: 100%; }
+
+        /* CHECKPOINT ITEM */
+        .checkpoint-item {
+            display: flex; align-items: flex-start; gap: 14px;
+            padding: 10px 4px; position: relative; z-index: 1;
+            border-radius: 14px; transition: background 0.2s;
+            cursor: default; user-select: none; overflow: hidden;
+        }
+        .checkpoint-item.clickable { cursor: pointer; }
+        .checkpoint-item.clickable:active { background: rgba(232,0,29,0.05); }
+        .checkpoint-item.blocked { opacity: 0.35; cursor: not-allowed; }
+
+        /* CIRCLE */
+        .cp-circle {
+            width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; position: relative; transition: all 0.4s;
+            background: rgba(16,22,50,0.8); border: 2px solid rgba(100,116,139,0.22);
+        }
+        .cp-circle.state-pending { filter: grayscale(0.5); opacity: 0.8; }
+        .cp-circle.state-active {
+            background: rgba(232,0,29,0.1); border-color: var(--red);
+            animation: redPulse 2s ease-in-out infinite;
+        }
+        @keyframes redPulse {
+            0%   { box-shadow: 0 0 0 0   rgba(232,0,29,0.55); }
+            50%  { box-shadow: 0 0 0 11px rgba(232,0,29,0); }
+            100% { box-shadow: 0 0 0 0   rgba(232,0,29,0); }
+        }
+        .cp-circle.state-done {
+            background: rgba(0,220,130,0.15); border-color: var(--green);
+            box-shadow: 0 0 14px rgba(0,220,130,0.22); animation: none;
+        }
+        .cp-circle.bounce-in {
+            animation: bounceCheck 0.55s cubic-bezier(0.36,0.07,0.19,0.97) both !important;
+        }
+        @keyframes bounceCheck {
+            0%  { transform: scale(1); }   28% { transform: scale(1.38); }
+            52% { transform: scale(0.87); } 76% { transform: scale(1.13); }
+            100%{ transform: scale(1); }
+        }
+        .cp-icon  { transition: opacity 0.3s; }
+        .cp-check { position: absolute; font-size: 18px; opacity: 0; transform: scale(0.4); transition: all 0.35s cubic-bezier(0.34,1.56,0.64,1); }
+        .cp-circle.state-done .cp-icon  { opacity: 0; }
+        .cp-circle.state-done .cp-check { opacity: 1; transform: scale(1); }
+
+        /* TEXT */
+        .cp-body { flex: 1; min-width: 0; padding-top: 9px; }
+        .cp-name { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+        .cp-desc { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono',monospace; }
+        .cp-time { font-size: 11px; color: var(--green); font-family: 'JetBrains Mono',monospace; margin-top: 3px; font-weight: 600; opacity: 0; max-height: 0; overflow: hidden; transition: all 0.4s; }
+        .cp-time.show { opacity: 1; max-height: 20px; }
+
+        .cp-status { display: flex; align-items: center; padding-top: 10px; flex-shrink: 0; }
+        .tap-label { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: var(--red3); font-family: 'JetBrains Mono',monospace; letter-spacing: 1px; opacity: 0; transition: opacity 0.3s; }
+        .tap-label.show { opacity: 1; animation: tapPulse 1.8s ease-in-out infinite; }
+        @keyframes tapPulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+        .tap-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--red3); animation: blink 1.2s ease-in-out infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.1} }
+        .done-check { font-size: 18px; color: var(--green); opacity: 0; transform: scale(0); transition: all 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+        .done-check.show { opacity: 1; transform: scale(1); }
+
+        /* RIPPLE */
+        .ripple-effect { position: absolute; border-radius: 50%; background: rgba(232,0,29,0.18); pointer-events: none; transform: scale(0); animation: rippleAnim 0.65s linear; }
+        @keyframes rippleAnim { to { transform: scale(4.5); opacity: 0; } }
+
+        /* INCIDENT */
+        .incident-card { padding: 20px 18px; display: none; }
+        .incident-card.show { display: block; animation: slideDown 0.35s ease; }
+        textarea.input-field { resize: vertical; min-height: 85px; }
+        .photo-zone {
+            width: 100%; padding: 26px 16px;
+            background: rgba(16,22,50,0.45); border: 1.5px dashed rgba(232,0,29,0.22);
+            border-radius: 12px; cursor: pointer; text-align: center; transition: all 0.25s; display: block;
+        }
+        .photo-zone:hover { border-color: var(--red); background: rgba(232,0,29,0.06); }
+        .photo-zone input { display: none; }
+        .photo-zone .up-icon { font-size: 28px; margin-bottom: 6px; }
+        .photo-zone .up-text { font-size: 12px; font-weight: 600; color: #94a3b8; }
+        .photo-preview-wrap { margin-top: 10px; border-radius: 10px; overflow: hidden; display: none; }
+        .photo-preview-wrap img { width: 100%; display: block; }
+
+        /* RETURN */
+        .return-card { padding: 20px 18px; display: none; }
+        .return-card.show { display: block; animation: slideDown 0.35s ease; }
+        .return-checkpoint {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 12px; border-radius: 14px; cursor: pointer;
+            transition: all 0.2s; border: 1px solid rgba(232,0,29,0.18);
+            background: rgba(16,22,50,0.4); overflow: hidden; position: relative;
+        }
+        .return-checkpoint:active { background: rgba(0,220,130,0.06); }
+        .return-checkpoint.done { border-color: rgba(0,220,130,0.3); background: rgba(0,220,130,0.06); cursor: default; }
+        .return-cp-circle {
+            width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; font-size: 18px;
+            background: rgba(232,0,29,0.1); border: 2px solid var(--red);
+            animation: redPulse 2s ease-in-out infinite; position: relative;
+        }
+        .return-cp-circle.done-state { background: rgba(0,220,130,0.15); border-color: var(--green); box-shadow: 0 0 14px rgba(0,220,130,0.22); animation: none; }
+
+        /* QR */
+        .qr-card { padding: 24px 18px; display: none; text-align: center; }
+        .qr-card.show { display: block; animation: slideDown 0.4s ease; }
+        .qr-title { font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 5px; }
+        .qr-sub { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+        .qr-wrap {
+            background: white; border-radius: 18px; padding: 16px;
+            max-width: 210px; margin: 0 auto 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 50px rgba(232,0,29,0.15);
+            animation: qrGlow 2.5s ease-in-out infinite;
+        }
+        @keyframes qrGlow {
+            0%,100% { box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 28px rgba(232,0,29,0.12); }
+            50%      { box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 55px rgba(232,0,29,0.38); }
+        }
+        .qr-wrap img { width: 100%; display: block; border-radius: 8px; }
+        .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+        .metric-box { background: rgba(16,22,50,0.55); border-radius: 10px; padding: 10px 12px; border: 1px solid rgba(232,0,29,0.1); }
+        .metric-label { font-size: 9px; color: var(--muted); font-family: 'JetBrains Mono',monospace; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+        .metric-val { font-size: 13px; font-weight: 700; color: #fff; }
+        .metric-val.gold { color: var(--gold2); }
+
+        .btn-secondary {
+            width: 100%; padding: 13px; background: rgba(71,85,105,0.2); color: #94a3b8;
+            border: 1px solid rgba(71,85,105,0.32); border-radius: 12px;
+            font-size: 13px; font-weight: 600; cursor: pointer;
+            font-family: 'Syne',sans-serif; margin-top: 8px; transition: background 0.2s;
+        }
+        .btn-secondary:hover { background: rgba(71,85,105,0.35); }
+
+        /* COMPLETION */
+        .completion-screen { display: none; text-align: center; padding: 20px 0; }
+        .completion-screen.show { display: block; animation: fadeUp .45s ease; }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+        .comp-icon { font-size: 60px; margin-bottom: 14px; animation: bounce .75s ease; }
+        @keyframes bounce { 0%,100%{transform:translateY(0)} 40%{transform:translateY(-20px)} 65%{transform:translateY(-9px)} }
+        .comp-title { font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 6px; }
+        .comp-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+        .summary-glass { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 10px; text-align: left; }
+        .sum-head { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); font-family: 'JetBrains Mono',monospace; margin-bottom: 12px; }
+        .sum-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 7px 0; border-bottom: 1px solid rgba(232,0,29,0.07); gap: 10px; }
+        .sum-row:last-child { border-bottom: none; }
+        .sum-label { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+        .sum-val { font-size: 12px; font-weight: 600; text-align: right; }
+
+        /* OVERLAYS */
+        .sending-overlay {
+            position: fixed; inset: 0; background: rgba(6,8,15,0.88); backdrop-filter: blur(8px);
+            z-index: 500; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+        }
+        .sending-overlay.show { display: flex; }
+        .send-spinner { width: 40px; height: 40px; border: 3px solid rgba(232,0,29,0.15); border-top-color: var(--red); border-radius: 50%; animation: spin .8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .send-label { color: #cbd5e1; font-size: 13px; font-family: 'JetBrains Mono',monospace; }
+
+        .toast {
+            position: fixed; bottom: 20px; left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            backdrop-filter: blur(12px); color: #fff;
+            padding: 10px 20px; border-radius: 22px;
+            font-size: 12px; font-weight: 600; z-index: 999; opacity: 0;
+            transition: all 0.3s ease; font-family: 'JetBrains Mono',monospace;
+            white-space: nowrap; pointer-events: none;
+            background: rgba(0,220,130,0.9);
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .toast.error { background: rgba(232,0,29,0.92); }
+        .toast.gold  { background: rgba(245,158,11,0.9); color: #000; }
+
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    </style>
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-1PYNBFGPML"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-1PYNBFGPML');
+    </script>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div class="sending-overlay" id="sendingOverlay">
+        <div class="send-spinner"></div>
+        <div class="send-label" id="sendLabel">Guardando…</div>
+    </div>
+
+    <div class="app-shell">
+        <header class="app-header">
+            <div class="header-row">
+                <div class="header-brand">
+                    <div class="brand-icon">♿</div>
+                    <div>
+                        <div class="brand-text">Reporte de Silla</div>
+                        <div class="brand-sub">Avianca SAL · WCH Services</div>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <div class="user-chip">
+                        <div class="av" id="avatarInitial">?</div>
+                        <div class="un" id="usernameDisplay">…</div>
+                    </div>
+                    <button class="btn-small btn-hist" onclick="goToHistory()">📋</button>
+                    <button class="btn-small btn-logout" onclick="logout()">Salir</button>
+                </div>
+            </div>
+            <div class="progress-wrap"><div class="progress-fill" id="progressBar"></div></div>
+            <div class="step-counter" id="stepCounter">✈️ INFORMACIÓN DE VUELO</div>
+        </header>
+
+        <div class="resume-banner" id="resumeBanner">
+            <span class="resume-badge">▶ RETOMANDO</span>
+            <span id="resumeBannerText">Cargando datos…</span>
+        </div>
+
+        <div class="app-content">
+
+            <!-- FLIGHT INFO -->
+            <div class="section-block" id="sectionFlight">
+                <div class="glass-card">
+                    <div class="flight-card" id="flightForm">
+                        <div class="card-title">✈️ Información de Vuelo</div>
+                        <div class="card-subtitle">Seleccione el tipo de servicio para comenzar el registro.</div>
+
+                        <!-- ── PASO 1: TIPO DE SERVICIO ── -->
+                        <div class="form-section-divider"><span>🛎️ Tipo de Servicio</span></div>
+                        <div class="form-group">
+                            <label>🛎️ Tipo de Servicio <span style="color:var(--red3);font-size:11px;">*</span></label>
+                            <select id="airlineType" class="input-field" onchange="onServiceTypeChange(this.value)">
+                                <option value="">-- Seleccione tipo --</option>
+                                <option value="Abordaje">🛫 Abordaje</option>
+                                <option value="Desabordaje">🛬 Desabordaje</option>
+                                <option value="otro">⚙️ Otro</option>
+                            </select>
+                        </div>
+
+                        <!-- ── PASO 2: TRAMO (solo Abordaje) ── -->
+                        <div id="tramoBlock" style="display:none;">
+                            <div class="form-section-divider"><span>🔀 Tramo del Abordaje</span></div>
+                            <div class="form-group">
+                                <label>🔀 Tramo <span style="color:var(--red3);font-size:11px;">*</span></label>
+                                <div class="tramo-group">
+                                    <button type="button" class="tramo-btn" id="tramoCounter" onclick="selectTramo('counter-inspeccion')">
+                                        <span class="tramo-icon">🏢</span>
+                                        <span class="tramo-name">Counter</span>
+                                        <span class="tramo-arrow">→</span>
+                                        <span class="tramo-icon">🔍</span>
+                                        <span class="tramo-name">Inspección</span>
+                                    </button>
+                                    <button type="button" class="tramo-btn" id="tramoSala" onclick="selectTramo('inspeccion-sala')">
+                                        <span class="tramo-icon">🔍</span>
+                                        <span class="tramo-name">Inspección</span>
+                                        <span class="tramo-arrow">→</span>
+                                        <span class="tramo-icon">🚪</span>
+                                        <span class="tramo-name">Sala / Gate</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ── PASO 3: DATOS DEL VUELO ── -->
+                        <div id="flightDataBlock" style="display:none;">
+                            <div class="form-section-divider"><span>✈️ Datos del Vuelo</span></div>
+                            <div class="form-group">
+                                <label>✈️ Aerolínea</label>
+                                <select id="airlineSelect" class="input-field" onchange="onFlightChange(); checkManualFormReady();">
+                                    <option value="">-- Seleccione aerolínea --</option>
+                                    <option value="AV">Avianca</option>
+                                    <option value="B6">Jetblue</option>
+                                    <option value="DL">Delta</option>
+                                    <option value="AC">Air Canada</option>
+                                    <option value="UA">United</option>
+                                    <option value="E9">Iberojet</option>
+                                    <option value="IB">Iberia</option>
+                                    <option value="NK">Spirit</option>
+                                    <option value="TS">Air Transat</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>🔢 # de Vuelo</label>
+                                <input type="text" id="flightNumber" class="input-field" placeholder="Ej: 1234" oninput="onFlightChange(); checkManualFormReady();">
+                            </div>
+                        </div>
+
+                        <!-- PASAJERO: modo manual (Counter → Inspección) -->
+                        <div id="passengerManualBlock">
+                            <div class="form-section-divider"><span>👤 Datos del Pasajero</span></div>
+                            <div class="form-group">
+                                <label>👤 Nombre del Pasajero <span style="color:var(--red3);font-size:11px;">*</span></label>
+                                <input type="text" id="passengerName" class="input-field" placeholder="Nombre completo del pasajero" oninput="checkManualFormReady()">
+                            </div>
+                            <div class="form-group">
+                                <label>🪑 Número de Silla <span style="color:var(--red3);font-size:11px;">*</span></label>
+                                <input type="text" id="seatNumber" class="input-field" placeholder="Ej: 14A" oninput="checkManualFormReady()">
+                            </div>
+
+                            <!-- TIPO WCH -->
+                            <div class="form-section-divider"><span>♿ Clasificación WCH</span></div>
+                            <div class="form-group">
+                                <label>🏷️ Tipo WCH <span style="color:var(--red3);font-size:11px;">*</span></label>
+                                <div class="wch-type-group">
+                                    <button type="button" class="wch-type-btn" id="wchWCHR" onclick="selectWCH('WCHR')">
+                                        <span class="wch-code">WCHR</span>
+                                        <span class="wch-desc">Camina, no sube escaleras</span>
+                                    </button>
+                                    <button type="button" class="wch-type-btn" id="wchWCHS" onclick="selectWCH('WCHS')">
+                                        <span class="wch-code">WCHS</span>
+                                        <span class="wch-desc">No camina largas distancias</span>
+                                    </button>
+                                    <button type="button" class="wch-type-btn" id="wchWCHC" onclick="selectWCH('WCHC')">
+                                        <span class="wch-code">WCHC</span>
+                                        <span class="wch-desc">No puede caminar</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- VERIFICACIONES -->
+                            <div class="form-section-divider"><span>✅ Verificaciones Médicas</span></div>
+                            <div class="form-group">
+                                <label>📄 ¿Posee documentos para viajar? <span style="color:var(--red3);font-size:11px;">*</span></label>
+                                <div class="toggle-group">
+                                    <button type="button" class="toggle-btn" id="docsYes" onclick="selectToggle('docs','si')">✅ Sí</button>
+                                    <button type="button" class="toggle-btn" id="docsNo"  onclick="selectToggle('docs','no')">❌ No</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>💓 ¿Posee marcapasos? <span style="color:var(--red3);font-size:11px;">*</span></label>
+                                <div class="toggle-group">
+                                    <button type="button" class="toggle-btn" id="paceYes" onclick="selectToggle('pace','si')">✅ Sí</button>
+                                    <button type="button" class="toggle-btn" id="paceNo"  onclick="selectToggle('pace','no')">❌ No</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>🚶 ¿Puede caminar a la puerta / asiento? <span style="color:var(--red3);font-size:11px;">*</span></label>
+                                <div class="toggle-group">
+                                    <button type="button" class="toggle-btn" id="walkYes" onclick="selectToggle('walk','si')">✅ Sí</button>
+                                    <button type="button" class="toggle-btn" id="walkNo"  onclick="selectToggle('walk','no')">❌ No</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PASAJERO: modo relevo (Inspección → Sala) -->
+                        <div id="passengerRelevoBlock" style="display:none;">
+                            <div class="form-section-divider"><span>👥 Seleccionar Pasajero del Relevo</span></div>
+                            <div class="relevo-status" id="relevoStatus">
+                                <div class="relevo-loading" id="relevoLoading" style="display:none;">
+                                    <div class="relevo-spinner"></div>
+                                    <span>Buscando pasajeros registrados…</span>
+                                </div>
+                                <div class="relevo-empty" id="relevoEmpty" style="display:none;">
+                                    ⚠️ No se encontraron pasajeros registrados para este vuelo en el tramo anterior. Verifique la aerolínea y número de vuelo.
+                                </div>
+                            </div>
+                            <div class="passenger-list" id="passengerList"></div>
+                            <!-- readonly summary auto-filled -->
+                            <div id="relevoDataSummary" style="display:none;">
+                                <div class="relevo-data-card">
+                                    <div class="relevo-data-row"><span>🪑 Silla</span><strong id="relevoSeat">–</strong></div>
+                                    <div class="relevo-data-row"><span>♿ WCH</span><strong id="relevoWCH">–</strong></div>
+                                    <div class="relevo-data-row"><span>📄 Docs</span><strong id="relevoDocs">–</strong></div>
+                                    <div class="relevo-data-row"><span>💓 Marcapasos</span><strong id="relevoPace">–</strong></div>
+                                    <div class="relevo-data-row"><span>🚶 Camina</span><strong id="relevoWalk">–</strong></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary" onclick="submitFlightInfo()" style="margin-top:10px;" id="btnIniciarServicio" disabled>♿ Iniciar Servicio →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FLIGHT CHIP -->
+            <div class="flight-info-chip" id="flightChip">
+                <div class="fic-icon">✈️</div>
+                <div class="fic-body">
+                    <div class="fic-top" id="ficTop">—</div>
+                    <div class="fic-bot" id="ficBot">—</div>
+                </div>
+                <div class="fic-badge" id="ficBadge">—</div>
+            </div>
+
+            <!-- CHECKPOINT TIMELINE -->
+            <div class="section-block" id="sectionTimeline">
+                <div class="glass-card">
+                    <div class="timeline-card" id="timelineCard">
+                        <div class="timeline-header">
+                            <div class="timeline-title">♿ Progreso del Servicio</div>
+                            <span class="prog-pill" id="progPill">PENDIENTE</span>
+                        </div>
+
+                        <!-- CP1 -->
+                        <div class="checkpoint-wrapper" id="cpWrapper1">
+                            <div class="checkpoint-item" id="cpItem1" onclick="handleCheckpointTap(1)">
+                                <div class="cp-circle state-pending" id="cpCircle1">
+                                    <span class="cp-icon">🦽</span>
+                                    <span class="cp-check">✓</span>
+                                </div>
+                                <div class="cp-body">
+                                    <div class="cp-name">Silla Asignada</div>
+                                    <div class="cp-desc">Silla entregada al pasajero</div>
+                                    <div class="cp-time" id="cpTime1"></div>
+                                </div>
+                                <div class="cp-status">
+                                    <div class="tap-label" id="tapLabel1"><div class="tap-dot"></div>TAP</div>
+                                    <div class="done-check" id="doneCheck1">✓</div>
+                                </div>
+                            </div>
+                            <div class="connector" id="connector1"><div class="connector-fill" id="connFill1"></div></div>
+                        </div>
+
+                        <!-- CP2 -->
+                        <div class="checkpoint-wrapper" id="cpWrapper2">
+                            <div class="checkpoint-item blocked" id="cpItem2" onclick="handleCheckpointTap(2)">
+                                <div class="cp-circle state-pending" id="cpCircle2">
+                                    <span class="cp-icon">🚀</span>
+                                    <span class="cp-check">✓</span>
+                                </div>
+                                <div class="cp-body">
+                                    <div class="cp-name">Inicio de Servicio</div>
+                                    <div class="cp-desc">Pasajero recogido</div>
+                                    <div class="cp-time" id="cpTime2"></div>
+                                </div>
+                                <div class="cp-status">
+                                    <div class="tap-label" id="tapLabel2"><div class="tap-dot"></div>TAP</div>
+                                    <div class="done-check" id="doneCheck2">✓</div>
+                                </div>
+                            </div>
+                            <div class="connector" id="connector2"><div class="connector-fill" id="connFill2"></div></div>
+                        </div>
+
+                        <!-- CP3 -->
+                        <div class="checkpoint-wrapper" id="cpWrapper3">
+                            <div class="checkpoint-item blocked" id="cpItem3" onclick="handleCheckpointTap(3)">
+                                <div class="cp-circle state-pending" id="cpCircle3">
+                                    <span class="cp-icon">🏁</span>
+                                    <span class="cp-check">✓</span>
+                                </div>
+                                <div class="cp-body">
+                                    <div class="cp-name">Finalización de Servicio</div>
+                                    <div class="cp-desc">Pasajero entregado en destino</div>
+                                    <div class="cp-time" id="cpTime3"></div>
+                                </div>
+                                <div class="cp-status">
+                                    <div class="tap-label" id="tapLabel3"><div class="tap-dot"></div>TAP</div>
+                                    <div class="done-check" id="doneCheck3">✓</div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- QR FEEDBACK -->
+            <div class="section-block" id="sectionQR">
+                <div class="glass-card">
+                    <div class="qr-card" id="qrCard">
+                        <div style="font-size:46px;margin-bottom:10px;">🎉</div>
+                        <div class="qr-title">¡Servicio Completado!</div>
+                        <div class="qr-sub">Muestre este QR al pasajero para su feedback ⭐</div>
+
+                        <div class="qr-wrap">
+                            <img id="qrImg" alt="QR Code Feedback"
+                                 src="data:image/jpeg;base64,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"
+                                 onerror="this.onerror=null;this.src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https%3A%2F%2Fapp.aerojethandlinggroup.com%2Fservice-feedback.html&bgcolor=ffffff&color=000000'">
+                        </div>
+
+                        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;font-family:'JetBrains Mono',monospace;">
+                            📱 El pasajero escanea el QR con su teléfono
+                        </div>
+                        <div style="margin-bottom:14px;">
+                            <a href="https://app.aerojethandlinggroup.com/service-feedback.html" target="_blank"
+                               style="font-size:10px;color:rgba(255,100,100,0.6);font-family:'JetBrains Mono',monospace;text-decoration:none;">
+                                🔗 app.aerojethandlinggroup.com/service-feedback.html
+                            </a>
+                        </div>
+
+                        <div class="metrics-grid">
+                            <div class="metric-box">
+                                <div class="metric-label">📅 Fecha</div>
+                                <div class="metric-val" id="mDate">—</div>
+                            </div>
+                            <div class="metric-box">
+                                <div class="metric-label">⏰ Inicio</div>
+                                <div class="metric-val" id="mStart">—</div>
+                            </div>
+                            <div class="metric-box">
+                                <div class="metric-label">🏁 Fin</div>
+                                <div class="metric-val" id="mEnd">—</div>
+                            </div>
+                            <div class="metric-box">
+                                <div class="metric-label">⚡ Duración</div>
+                                <div class="metric-val gold" id="mDuration">—</div>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary" onclick="proceedAfterQR()">Continuar Reporte →</button>
+                        <button class="btn-secondary" onclick="proceedAfterQR()">⏭ Omitir (pasajero no disponible)</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- INCIDENT -->
+            <div class="section-block" id="sectionIncident">
+                <div class="glass-card">
+                    <div class="incident-card" id="incidentCard">
+                        <div class="card-title">🚨 Reporte de Incidente</div>
+                        <div class="card-subtitle">¿Ocurrió algún incidente? Déjelo en blanco si todo estuvo bien.</div>
+                        <div class="form-group">
+                            <label>📝 Descripción del Incidente</label>
+                            <textarea id="incidentDescription" class="input-field" placeholder="Describa el incidente (deje en blanco si no hubo ninguno)"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>📷 Foto de Evidencia (Opcional)</label>
+                            <label class="photo-zone">
+                                <div class="up-icon">📎</div>
+                                <div class="up-text">Toca para adjuntar imagen</div>
+                                <input type="file" id="incidentPhoto" accept="image/*" onchange="previewPhoto(this)">
+                            </label>
+                            <div class="photo-preview-wrap" id="photoPreview">
+                                <img id="previewImage" src="" alt="Vista previa">
+                            </div>
+                        </div>
+                        <button class="btn-primary" onclick="submitIncident()">Continuar →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RETURN -->
+            <div class="section-block" id="sectionReturn">
+                <div class="glass-card">
+                    <div class="return-card" id="returnCard">
+                        <div class="card-title" style="margin-bottom:6px;">♻️ Retorno de Silla</div>
+                        <div class="card-subtitle" style="margin-bottom:16px;">Confirme cuando la silla haya sido devuelta a su punto de origen.</div>
+                        <div class="return-checkpoint" id="returnCpItem" onclick="handleReturnTap()">
+                            <div class="return-cp-circle" id="returnCpCircle">
+                                <span id="returnCpIcon">🔄</span>
+                                <span id="returnCpCheck" style="position:absolute;font-size:18px;opacity:0;transform:scale(0.5);transition:all .35s cubic-bezier(0.34,1.56,0.64,1);">✓</span>
+                            </div>
+                            <div class="cp-body">
+                                <div class="cp-name">Retorno de Silla</div>
+                                <div class="cp-desc">Silla devuelta a su lugar</div>
+                                <div class="cp-time" id="returnCpTime"></div>
+                            </div>
+                            <div class="cp-status">
+                                <div class="tap-label show" id="returnTapLabel"><div class="tap-dot"></div>TAP</div>
+                                <div class="done-check" id="returnDoneCheck">✓</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COMPLETION -->
+            <div class="completion-screen" id="completionScreen">
+                <div class="comp-icon">🎉</div>
+                <div class="comp-title">¡Reporte Completado!</div>
+                <div class="comp-sub">Servicio registrado exitosamente ✅</div>
+                <div class="summary-glass">
+                    <div class="sum-head">✈️ Vuelo</div>
+                    <div class="sum-row"><span class="sum-label">Reporte #</span><span class="sum-val" id="sumReporte">–</span></div>
+                    <div class="sum-row"><span class="sum-label">Vuelo</span><span class="sum-val" id="sumVuelo">–</span></div>
+                    <div class="sum-row"><span class="sum-label">Aerolínea</span><span class="sum-val" id="sumAerolinea">–</span></div>
+                    <div class="sum-row"><span class="sum-label">Tipo / WCH</span><span class="sum-val" id="sumTipo">–</span></div>
+                    <div class="sum-row"><span class="sum-label">Inspector</span><span class="sum-val" id="sumInspector">–</span></div>
+                </div>
+                <div class="summary-glass">
+                    <div class="sum-head">👤 Pasajero</div>
+                    <div class="sum-row"><span class="sum-label">Nombre</span><span class="sum-val" id="sumPasajero">–</span></div>
+                    <div class="sum-row"><span class="sum-label">Silla #</span><span class="sum-val" id="sumSilla">–</span></div>
+                    <div class="sum-row"><span class="sum-label">Documentos</span><span class="sum-val" id="sumDocs">–</span></div>
+                    <div class="sum-row"><span class="sum-label">Marcapasos</span><span class="sum-val" id="sumPace">–</span></div>
+                    <div class="sum-row"><span class="sum-label">Puede caminar</span><span class="sum-val" id="sumWalk">–</span></div>
+                </div>
+                <div class="summary-glass">
+                    <div class="sum-head">⏱️ Tiempos</div>
+                    <div id="timeSummary"></div>
+                </div>
+                <div class="summary-glass" id="incidentSummaryCard" style="display:none;">
+                    <div class="sum-head" style="color:#fca5a5;">🚨 Incidente</div>
+                    <div id="incidentSummaryContent"></div>
+                </div>
+                <button class="btn-primary" onclick="newReport()" style="margin-bottom:8px;">🔄 Nuevo Reporte</button>
+                <button class="btn-secondary" onclick="goToHistory()">📋 Ver Historial</button>
+                <button class="btn-secondary" onclick="logout()">🚪 Cerrar Sesión</button>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+    const SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbxUBk_-yW99Fw-yExqrTtXZulen78EbWfHhs6iSG7GYZom-d7Aa16wLQy8QrgHp9c7Z/exec';
+    const AIRLINE_NAMES = { AV:'Avianca', B6:'Jetblue', DL:'Delta', AC:'Air Canada', UA:'United', E9:'Iberojet' };
+    const SVC_LABELS    = { 'Abordaje':'Abordaje', 'counter-inspeccion':'Counter → Inspección', 'inspeccion-sala':'Inspección → Sala', 'Desabordaje':'Desabordaje', 'otro':'Otro' };
+
+    let currentUser=null, reportId='', flightNum='', serviceType='', airlineCode='';
+    let timestamps={}, checkpointProgress=0;
+    let incidentText='', incidentPhotoB64='';
+    let isResume=false, resumeRowId=null, returnDone=false;
+    // New passenger fields
+    let passengerName='', seatNumber='', wchType='';
+    let hasDocs='', hasPacemaker='', canWalk='';
+    // Tramo / relevo
+    let tramoType='';          // 'counter-inspeccion' | 'inspeccion-sala' | 'Desabordaje' | 'otro'
+    let relevoPassengers=[];   // list fetched from Apps Script for relevo mode
+    let selectedRelevoId='';   // id of selected relevo passenger
+    let flightSearchTimer=null;
+
+    /* AUTH */
+    (function checkAuth(){
+        const raw=sessionStorage.getItem('user');
+        if(!raw){ window.location.href='sillas.html'; return; }
+        try{
+            currentUser=JSON.parse(raw);
+            document.getElementById('usernameDisplay').textContent=currentUser.username;
+            document.getElementById('avatarInitial').textContent=(currentUser.username||'?').slice(0,2).toUpperCase();
+        }catch(e){ window.location.href='LT.html'; }
+    })();
+
+    /* THREE.JS BG */
+    (function initBG(){
+        const cntr=document.getElementById('canvas-container');
+        const sc=new THREE.Scene();
+        const cm=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,1000);
+        const rd=new THREE.WebGLRenderer({alpha:true,antialias:true});
+        rd.setSize(innerWidth,innerHeight);
+        cntr.appendChild(rd.domElement);
+        const geo=new THREE.BufferGeometry();
+        const N=2000,pos=new Float32Array(N*3);
+        for(let i=0;i<N*3;i++) pos[i]=(Math.random()-.5)*100;
+        geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+        const mat=new THREE.PointsMaterial({size:.06,color:0xe8001d,transparent:true,opacity:.4,blending:THREE.AdditiveBlending});
+        const pts=new THREE.Points(geo,mat);
+        sc.add(pts); cm.position.z=30;
+        const tg=new THREE.TorusGeometry(12,.3,12,80);
+        const tm=new THREE.MeshBasicMaterial({color:0xe8001d,wireframe:true,transparent:true,opacity:.04});
+        const tr=new THREE.Mesh(tg,tm); tr.position.set(14,-4,-18); sc.add(tr);
+        (function a(){ requestAnimationFrame(a); pts.rotation.y+=.0007; tr.rotation.x+=.006; tr.rotation.z+=.003; rd.render(sc,cm); })();
+        window.addEventListener('resize',()=>{ cm.aspect=innerWidth/innerHeight; cm.updateProjectionMatrix(); rd.setSize(innerWidth,innerHeight); });
+    })();
+
+    /* RESUME */
+    (function tryResume(){
+        const raw=sessionStorage.getItem('resumeSillaReport');
+        if(!raw) return;
+        sessionStorage.removeItem('resumeSillaReport');
+        let r; try{ r=JSON.parse(raw); }catch(e){ return; }
+        isResume=true; resumeRowId=r.id||null;
+        airlineCode=r.aerolinea||''; serviceType=r.tipoServicio||'';
+        reportId=r.numeroReporte||('WCH-'+Date.now());
+        flightNum=r.vuelo||'';
+        trySetVal('airlineSelect',r.aerolinea||'');
+        trySetVal('flightNumber',r.vuelo||'');
+        const svcMap={'asistencia-sala':'asistencia-sala','Abordaje':'Abordaje','Desabordaje':'Desabordaje','otro':'otro'};
+        const svcVal=r.tipoServicio||(r.asistenciaSala?'asistencia-sala':r.abordaje?'Abordaje':r.desabordaje?'Desabordaje':'otro');
+        trySetVal('airlineType',svcMap[svcVal]||'');
+        if(r.horaAsignacion)     timestamps[1]=buildISO(r.fechaAsignacion,r.horaAsignacion);
+        if(r.horaInicioServicio) timestamps[2]=buildISO(r.fechaInicioServicio,r.horaInicioServicio);
+        if(r.horaFinServicio)    timestamps[3]=buildISO(r.fechaFinServicio,r.horaFinServicio);
+        if(timestamps[1]) checkpointProgress=1;
+        if(timestamps[2]) checkpointProgress=2;
+        if(timestamps[3]) checkpointProgress=3;
+        document.getElementById('resumeBanner').classList.add('show');
+        document.getElementById('resumeBannerText').textContent=`${AIRLINE_NAMES[r.aerolinea]||r.aerolinea||'–'} · Vuelo ${r.vuelo||'–'} — continuando desde paso ${checkpointProgress+1}`;
+        activateFlightSections();
+        renderTimeline();
+        if(checkpointProgress>=3) showQRSection();
+        updateProgress();
+    })();
+
+    function buildISO(ds,ts){
+        if(!ds||!ts) return '';
+        try{ const p=String(ds).split('/'); if(p.length===3){ const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0])); const t=String(ts).split(':'); d.setHours(parseInt(t[0]||0),parseInt(t[1]||0),parseInt(t[2]||0)); return d.toISOString(); } }catch(e){}
+        return '';
+    }
+    function trySetVal(id,val){ const el=document.getElementById(id); if(el&&val) el.value=val; }
+
+    /* ── TIPO DE SERVICIO CHANGE ── */
+    function onServiceTypeChange(val){
+        serviceType = val;
+        tramoType   = '';   // reset tramo whenever service type changes
+
+        // Reset tramo buttons
+        ['tramoCounter','tramoSala'].forEach(id=>{
+            document.getElementById(id)?.classList.remove('selected');
+        });
+
+        // Show/hide tramo block (only for Abordaje)
+        const needsTramo = (val === 'Abordaje');
+        document.getElementById('tramoBlock').style.display = needsTramo ? 'block' : 'none';
+
+        // For non-Abordaje types, tramoType equals the service type itself
+        if (!needsTramo && val) {
+            tramoType = val;   // 'Desabordaje' | 'otro'
+            // Show flight data immediately
+            document.getElementById('flightDataBlock').style.display = 'block';
+            // Show manual passenger block (no relevo for Desabordaje/Otro)
+            document.getElementById('passengerManualBlock').style.display = 'block';
+            document.getElementById('passengerRelevoBlock').style.display = 'none';
+        } else if (needsTramo) {
+            // Hide flight data until tramo is selected
+            document.getElementById('flightDataBlock').style.display = 'none';
+            document.getElementById('passengerManualBlock').style.display = 'none';
+            document.getElementById('passengerRelevoBlock').style.display = 'none';
+        } else {
+            // No value selected
+            document.getElementById('flightDataBlock').style.display = 'none';
+            document.getElementById('passengerManualBlock').style.display = 'none';
+            document.getElementById('passengerRelevoBlock').style.display = 'none';
+        }
+
+        // Reset passenger data
+        selectedRelevoId=''; relevoPassengers=[];
+        const plEl=document.getElementById('passengerList'); if(plEl) plEl.innerHTML='';
+        const rdEl=document.getElementById('relevoDataSummary'); if(rdEl) rdEl.style.display='none';
+        const reEl=document.getElementById('relevoEmpty'); if(reEl) reEl.style.display='none';
+        document.getElementById('btnIniciarServicio').disabled=true;
+
+        checkManualFormReady();
+    }
+
+    /* ── TRAMO SELECTOR (Abordaje only) ── */
+    function selectTramo(tramo){
+        tramoType = tramo;
+
+        // Button highlight
+        ['tramoCounter','tramoSala'].forEach(id=>{
+            document.getElementById(id)?.classList.remove('selected');
+        });
+        if(tramo==='counter-inspeccion') document.getElementById('tramoCounter')?.classList.add('selected');
+        if(tramo==='inspeccion-sala')    document.getElementById('tramoSala')?.classList.add('selected');
+
+        const isRelevo = (tramo === 'inspeccion-sala');
+
+        // Now show flight data block
+        document.getElementById('flightDataBlock').style.display = 'block';
+        document.getElementById('passengerManualBlock').style.display = isRelevo ? 'none' : 'block';
+        document.getElementById('passengerRelevoBlock').style.display = isRelevo ? 'block' : 'none';
+
+        // Reset passenger
+        selectedRelevoId=''; relevoPassengers=[];
+        document.getElementById('passengerList').innerHTML='';
+        document.getElementById('relevoDataSummary').style.display='none';
+        document.getElementById('relevoEmpty').style.display='none';
+        document.getElementById('btnIniciarServicio').disabled=true;
+
+        if(isRelevo) tryFetchRelevoPassengers();
+    }
+
+    /* ── FLIGHT INPUT CHANGE (triggers relevo search) ── */
+    function onFlightChange(){
+        if(tramoType !== 'inspeccion-sala') return;
+        clearTimeout(flightSearchTimer);
+        flightSearchTimer = setTimeout(tryFetchRelevoPassengers, 800);
+    }
+
+    /* ── FETCH RELEVO PASSENGERS from Apps Script ── */
+    function tryFetchRelevoPassengers(){
+        const airline = document.getElementById('airlineSelect').value;
+        const flight  = document.getElementById('flightNumber').value.trim();
+        if(!airline || !flight) return;
+
+        document.getElementById('relevoLoading').style.display='flex';
+        document.getElementById('relevoEmpty').style.display='none';
+        document.getElementById('passengerList').innerHTML='';
+        document.getElementById('relevoDataSummary').style.display='none';
+        document.getElementById('btnIniciarServicio').disabled=true;
+        selectedRelevoId='';
+
+        const cbName='relevoCb'+Date.now();
+        const url=SCRIPT_URL+'?action=getRelevoPassengers&airline='+encodeURIComponent(airline)+'&flight='+encodeURIComponent(flight)+'&tramo=counter-inspeccion&callback='+cbName;
+
+        window[cbName]=function(data){
+            delete window[cbName];
+            const s=document.getElementById('rscr'); if(s) s.remove();
+            document.getElementById('relevoLoading').style.display='none';
+
+            if(data && data.success && data.passengers && data.passengers.length>0){
+                relevoPassengers = data.passengers;
+                renderPassengerList();
+            } else {
+                relevoPassengers=[];
+                document.getElementById('relevoEmpty').style.display='block';
+            }
+        };
+
+        const scr=document.createElement('script'); scr.id='rscr'; scr.src=url;
+        scr.onerror=()=>{ delete window[cbName]; scr.remove();
+            document.getElementById('relevoLoading').style.display='none';
+            document.getElementById('relevoEmpty').style.display='block';
+        };
+        document.body.appendChild(scr);
+        setTimeout(()=>{ if(window[cbName]){ delete window[cbName];
+            document.getElementById('relevoLoading').style.display='none';
+            document.getElementById('relevoEmpty').style.display='block';
+        }}, 10000);
+    }
+
+    /* ── RENDER PASSENGER CARDS ── */
+    function renderPassengerList(){
+        const list=document.getElementById('passengerList');
+        list.innerHTML = relevoPassengers.map((p,i)=>{
+            const initials=(p.nombre||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+            const wchTag=p.wchType||'WCH';
+            const seat=p.seatNumber||'–';
+            return `<div class="passenger-card" id="pcard${i}" onclick="selectRelevoPassenger(${i})">
+                <div class="pc-avatar">${initials}</div>
+                <div class="pc-body">
+                    <div class="pc-name">${p.nombre||'Pasajero '+i}</div>
+                    <div class="pc-meta">🪑 ${seat} · ♿ ${wchTag} · ${p.reportNum||''}</div>
+                </div>
+                <div class="pc-check">✓</div>
+            </div>`;
+        }).join('');
+    }
+
+    /* ── SELECT A RELEVO PASSENGER ── */
+    function selectRelevoPassenger(idx){
+        relevoPassengers.forEach((_,i)=>{
+            document.getElementById('pcard'+i)?.classList.toggle('selected', i===idx);
+        });
+        const p = relevoPassengers[idx];
+        selectedRelevoId = p.id || p.reportNum || String(idx);
+
+        // Auto-fill state from the selected passenger
+        passengerName  = p.nombre      || '';
+        seatNumber     = p.seatNumber  || '';
+        wchType        = p.wchType     || '';
+        hasDocs        = p.hasDocs     || '';
+        hasPacemaker   = p.hasPacemaker|| '';
+        canWalk        = p.canWalk     || '';
+
+        // Show data summary card
+        document.getElementById('relevoSeat').textContent = seatNumber || '–';
+        document.getElementById('relevoWCH').textContent  = wchType    || '–';
+        document.getElementById('relevoDocs').textContent = hasDocs==='si'?'✅ Sí':'❌ No';
+        document.getElementById('relevoPace').textContent = hasPacemaker==='si'?'⚠️ Sí':'✅ No';
+        document.getElementById('relevoWalk').textContent = canWalk==='si'?'✅ Sí':'❌ No';
+        document.getElementById('relevoDataSummary').style.display='block';
+        document.getElementById('btnIniciarServicio').disabled=false;
+    }
+
+    /* ── TOGGLE & WCH SELECTORS ── */
+    function selectToggle(group, val){
+        const map = { docs:['docsYes','docsNo'], pace:['paceYes','paceNo'], walk:['walkYes','walkNo'] };
+        const [yesId, noId] = map[group];
+        const y=document.getElementById(yesId), n=document.getElementById(noId);
+        if(y) y.className='toggle-btn'+(val==='si'?' selected-yes':'');
+        if(n) n.className='toggle-btn'+(val==='no'?' selected-no':'');
+        if(group==='docs') hasDocs=val;
+        if(group==='pace') hasPacemaker=val;
+        if(group==='walk') canWalk=val;
+        checkManualFormReady();
+    }
+
+    function selectWCH(type){
+        ['WCHR','WCHS','WCHC'].forEach(t=>{
+            document.getElementById('wch'+t)?.classList.toggle('selected', t===type);
+        });
+        wchType=type;
+        checkManualFormReady();
+    }
+
+    /* Enable submit button only when manual form is complete */
+    function checkManualFormReady(){
+        if(tramoType==='inspeccion-sala') return; // handled by selectRelevoPassenger
+        const svcType = document.getElementById('airlineType').value;
+        const airline = document.getElementById('airlineSelect')?.value || '';
+        const flight  = document.getElementById('flightNumber')?.value.trim() || '';
+        const pName   = document.getElementById('passengerName')?.value.trim() || '';
+        const seat    = document.getElementById('seatNumber')?.value.trim() || '';
+        // For Abordaje, tramoType must also be set
+        const tramoOk = (svcType !== 'Abordaje') || (tramoType !== '');
+        const ready = svcType && tramoOk && airline && flight && pName && seat && wchType && hasDocs && hasPacemaker && canWalk;
+        document.getElementById('btnIniciarServicio').disabled = !ready;
+    }
+
+    /* ── FLIGHT SUBMIT ── */
+    function submitFlightInfo(){
+        const type    = document.getElementById('airlineType').value;
+        const airline = document.getElementById('airlineSelect').value;
+        const flight  = document.getElementById('flightNumber').value.trim();
+
+        if(!type)     { showToast('Seleccione el tipo de servicio','error'); return; }
+        if(!airline)  { showToast('Seleccione una aerolínea','error'); return; }
+        if(!flight)   { showToast('Ingrese el número de vuelo','error'); return; }
+
+        // For Abordaje, tramoType must be set; for others it equals the service type
+        if(type === 'Abordaje' && !tramoType){
+            showToast('Seleccione el tramo del abordaje','error'); return;
+        }
+
+        const isRelevo = (tramoType === 'inspeccion-sala');
+
+        if(isRelevo){
+            if(!selectedRelevoId){ showToast('Seleccione un pasajero del relevo','error'); return; }
+        } else {
+            const pName = document.getElementById('passengerName').value.trim();
+            const seat  = document.getElementById('seatNumber').value.trim();
+            if(!pName)       { showToast('Ingrese el nombre del pasajero','error'); document.getElementById('passengerName').focus(); return; }
+            if(!seat)        { showToast('Ingrese el número de silla','error'); document.getElementById('seatNumber').focus(); return; }
+            if(!wchType)     { showToast('Seleccione el tipo WCH','error'); return; }
+            if(!hasDocs)     { showToast('Indique si posee documentos','error'); return; }
+            if(!hasPacemaker){ showToast('Indique si posee marcapasos','error'); return; }
+            if(!canWalk)     { showToast('Indique si puede caminar a la puerta','error'); return; }
+            passengerName=pName; seatNumber=seat;
+        }
+
+        serviceType=type; airlineCode=airline; flightNum=flight;
+        if(!reportId) reportId='WCH-'+Date.now();
+        const ts=new Date().toISOString(); timestamps[0]=ts;
+        showSending('Guardando información de vuelo…');
+        sendToSheet(0,'Vuelo: '+airline+' '+flight,ts,()=>{
+            hideSending(); showToast('✅ Vuelo registrado');
+            activateFlightSections(); renderTimeline(); updateProgress();
+            scrollTo('sectionTimeline');
+        });
+    }
+
+    function activateFlightSections(){
+        const chip=document.getElementById('flightChip');
+        chip.classList.add('show');
+        const tramoLabel = {'counter-inspeccion':'Counter→Inspección','inspeccion-sala':'Inspección→Sala','Desabordaje':'Desabordaje','otro':'Otro'}[tramoType]||tramoType;
+        document.getElementById('ficTop').textContent=(AIRLINE_NAMES[airlineCode]||airlineCode)+' · '+flightNum+' · '+passengerName;
+        document.getElementById('ficBot').textContent=tramoLabel+' · Silla '+seatNumber+' · '+wchType;
+        const badge=document.getElementById('ficBadge');
+        badge.textContent=(SVC_LABELS[tramoType]||SVC_LABELS[serviceType]||serviceType||'–').toUpperCase();
+        const clsMap={'Abordaje':'abordaje','counter-inspeccion':'abordaje','inspeccion-sala':'abordaje','Desabordaje':'desabordaje','otro':'otro'};
+        badge.className='fic-badge '+(clsMap[serviceType]||'sala');
+        document.getElementById('flightForm').style.display='none';
+        document.getElementById('timelineCard').classList.add('show');
+    }
+
+    /* RENDER TIMELINE */
+    function renderTimeline(){
+        for(let cp=1;cp<=3;cp++){
+            const isDone=cp<=checkpointProgress, isActive=cp===checkpointProgress+1;
+            const item=document.getElementById('cpItem'+cp);
+            const circle=document.getElementById('cpCircle'+cp);
+            const tapLbl=document.getElementById('tapLabel'+cp);
+            const doneChk=document.getElementById('doneCheck'+cp);
+            const timeEl=document.getElementById('cpTime'+cp);
+            item.classList.remove('clickable','blocked');
+            circle.classList.remove('state-pending','state-active','state-done');
+            if(isDone){
+                circle.classList.add('state-done');
+                doneChk.classList.add('show'); tapLbl.classList.remove('show');
+                if(timestamps[cp]){ timeEl.textContent='✓ '+fmtTime(timestamps[cp]); timeEl.classList.add('show'); }
+            } else if(isActive){
+                circle.classList.add('state-active');
+                item.classList.add('clickable'); tapLbl.classList.add('show'); doneChk.classList.remove('show');
+            } else {
+                circle.classList.add('state-pending');
+                item.classList.add('blocked'); tapLbl.classList.remove('show'); doneChk.classList.remove('show');
+            }
+        }
+        for(let c=1;c<=2;c++){
+            const fill=document.getElementById('connFill'+c);
+            if(c<checkpointProgress){ fill.style.height='100%'; }
+            else if(c===checkpointProgress){ setTimeout(()=>{ fill.style.height='100%'; },100); }
+            else{ fill.style.height='0%'; }
+        }
+        const pill=document.getElementById('progPill');
+        if(checkpointProgress===0){
+            pill.textContent='PENDIENTE';
+            pill.style.cssText='background:rgba(100,116,139,0.15);border-color:rgba(100,116,139,0.25);color:var(--muted)';
+        } else if(checkpointProgress<3){
+            pill.textContent=checkpointProgress+' / 3 ✈️';
+            pill.style.cssText='background:rgba(232,0,29,0.12);border-color:rgba(232,0,29,0.35);color:var(--red3)';
+        } else {
+            pill.textContent='✅ COMPLETO';
+            pill.style.cssText='background:rgba(0,220,130,0.15);border-color:rgba(0,220,130,0.4);color:var(--green)';
+        }
+    }
+
+    /* CHECKPOINT TAP */
+    function handleCheckpointTap(cp){
+        if(cp!==checkpointProgress+1) return;
+        if(checkpointProgress>=3) return;
+        const item=document.getElementById('cpItem'+cp);
+        if(item.classList.contains('blocked')) return;
+        spawnRipple(item);
+        const ts=new Date().toISOString(); timestamps[cp]=ts;
+        const labels={1:'Silla Asignada',2:'Inicio de Servicio',3:'Finalización de Servicio'};
+        showSending('Guardando '+labels[cp]+'…');
+        sendToSheet(cp,labels[cp],ts,()=>{
+            hideSending(); checkpointProgress=cp;
+            const circle=document.getElementById('cpCircle'+cp);
+            circle.classList.remove('state-active');
+            circle.classList.add('state-done','bounce-in');
+            setTimeout(()=>circle.classList.remove('bounce-in'),600);
+            showToast('✅ '+labels[cp]);
+            setTimeout(()=>{
+                renderTimeline(); updateProgress();
+                if(cp===3){ setTimeout(()=>{ showQRSection(); showToast('♻️ Registra el retorno de la silla','gold'); },700); }
+            },500);
+        });
+    }
+
+    function spawnRipple(el){
+        const rip=document.createElement('div'); rip.className='ripple-effect';
+        const rect=el.getBoundingClientRect(); const size=Math.max(rect.width,rect.height);
+        rip.style.cssText=`width:${size}px;height:${size}px;left:${rect.width/2-size/2}px;top:${rect.height/2-size/2}px`;
+        el.appendChild(rip); rip.addEventListener('animationend',()=>rip.remove());
+    }
+
+    function showQRSection(){
+        document.getElementById('qrCard').classList.add('show');
+        const t2=timestamps[2],t3=timestamps[3];
+        const fmt=iso=>{try{const d=new Date(iso);return d.toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});}catch{return'—';}};
+        const fmtD=iso=>{try{const d=new Date(iso);return d.toLocaleDateString('es-CR',{day:'2-digit',month:'2-digit',year:'numeric'});}catch{return'—';}};
+        document.getElementById('mDate').textContent=t2?fmtD(t2):(t3?fmtD(t3):'—');
+        document.getElementById('mStart').textContent=t2?fmt(t2):'—';
+        document.getElementById('mEnd').textContent=t3?fmt(t3):'—';
+        if(t2&&t3){ const ms=new Date(t3)-new Date(t2); const min=Math.floor(ms/60000),sec=Math.floor((ms%60000)/1000); document.getElementById('mDuration').textContent=min+'m '+(sec<10?'0'+sec:sec)+'s'; }
+        scrollTo('sectionQR');
+    }
+
+    function proceedAfterQR(){
+        document.getElementById('qrCard').classList.remove('show');
+        document.getElementById('incidentCard').classList.add('show');
+        document.getElementById('returnCard').classList.add('show');
+        updateProgress(); scrollTo('sectionIncident');
+    }
+
+    function submitIncident(){
+        const desc=document.getElementById('incidentDescription').value.trim();
+        incidentText=desc||'Sin incidentes reportados';
+        const ts=new Date().toISOString(); timestamps[4]=ts;
+        showSending('Guardando incidente…');
+        sendToSheet(4,'Incidente: '+incidentText,ts,()=>{
+            hideSending(); showToast(desc?'🚨 Incidente registrado':'✅ Sin incidentes');
+            document.getElementById('incidentCard').classList.remove('show');
+            scrollTo('sectionReturn');
+        });
+    }
+
+    function previewPhoto(input){
+        if(input.files&&input.files[0]){
+            const reader=new FileReader();
+            reader.onload=e=>{ document.getElementById('previewImage').src=e.target.result; document.getElementById('photoPreview').style.display='block'; incidentPhotoB64=e.target.result; };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function handleReturnTap(){
+        if(returnDone) return;
+        const item=document.getElementById('returnCpItem'); spawnRipple(item);
+        const ts=new Date().toISOString(); timestamps[5]=ts;
+        showSending('Guardando retorno de silla…');
+        sendToSheet(5,'Retorno de Silla',ts,()=>{
+            hideSending(); returnDone=true;
+            const circle=document.getElementById('returnCpCircle'); circle.classList.add('done-state');
+            document.getElementById('returnCpIcon').style.opacity='0';
+            const chk=document.getElementById('returnCpCheck'); chk.style.opacity='1'; chk.style.transform='scale(1)';
+            document.getElementById('returnTapLabel').classList.remove('show');
+            document.getElementById('returnDoneCheck').classList.add('show');
+            const rt=document.getElementById('returnCpTime'); rt.textContent='✓ '+fmtTime(ts); rt.classList.add('show');
+            item.classList.add('done');
+            showToast('♻️ Retorno registrado');
+            updateProgress();
+            setTimeout(()=>showCompletionScreen(),600);
+        });
+    }
+
+    function showCompletionScreen(){
+        ['sectionFlight','flightChip','sectionTimeline','sectionQR','sectionIncident','sectionReturn'].forEach(id=>{
+            const el=document.getElementById(id); if(el) el.style.display='none';
+        });
+        document.getElementById('sumReporte').textContent=reportId;
+        document.getElementById('sumVuelo').textContent=flightNum;
+        document.getElementById('sumAerolinea').textContent=AIRLINE_NAMES[airlineCode]||airlineCode;
+        const tramoLabel2 = SVC_LABELS[tramoType] || SVC_LABELS[serviceType] || serviceType || '–';
+        document.getElementById('sumTipo').textContent=tramoLabel2+' · '+wchType;
+        document.getElementById('sumInspector').textContent=currentUser.username;
+        document.getElementById('sumPasajero').textContent=passengerName;
+        document.getElementById('sumSilla').textContent=seatNumber;
+        document.getElementById('sumDocs').textContent=hasDocs==='si'?'✅ Sí':'❌ No';
+        document.getElementById('sumPace').textContent=hasPacemaker==='si'?'⚠️ Sí':'✅ No';
+        document.getElementById('sumWalk').textContent=canWalk==='si'?'✅ Sí':'❌ No';
+        const labels={1:'🦽 Silla Asignada',2:'🚀 Inicio Servicio',3:'🏁 Fin Servicio',4:'🚨 Incidente',5:'♻️ Retorno'};
+        let html='';
+        for(let s=1;s<=5;s++){
+            if(!timestamps[s]) continue;
+            let diff='';
+            if(s>1&&timestamps[s-1]){ const ms=new Date(timestamps[s])-new Date(timestamps[s-1]); if(ms>=0) diff=' <span style="color:var(--green);font-size:10px;">+'+Math.round(ms/60000)+'min</span>'; }
+            html+=`<div class="sum-row"><span class="sum-label">${labels[s]}</span><span class="sum-val">${fmtTimestamp(timestamps[s])}${diff}</span></div>`;
+        }
+        document.getElementById('timeSummary').innerHTML=html||'<div style="color:var(--muted);font-size:11px;padding:6px 0;">Sin tiempos</div>';
+        if(incidentText&&incidentText!=='Sin incidentes reportados'){
+            document.getElementById('incidentSummaryCard').style.display='block';
+            document.getElementById('incidentSummaryContent').innerHTML=`<div class="sum-row"><span class="sum-label">Descripción</span><span class="sum-val">${incidentText}</span></div>`;
+        }
+        updateProgress();
+        document.getElementById('completionScreen').classList.add('show');
+        scrollTo('completionScreen');
+    }
+
+    function newReport(){
+        checkpointProgress=0; returnDone=false; timestamps={}; incidentText=''; incidentPhotoB64='';
+        reportId=''; flightNum=''; serviceType=''; airlineCode=''; isResume=false; resumeRowId=null;
+        ['airlineType','airlineSelect','flightNumber','passengerName','seatNumber','incidentDescription'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+        // Reset toggles, WCH, tramo
+        passengerName=''; seatNumber=''; wchType=''; hasDocs=''; hasPacemaker=''; canWalk='';
+        tramoType=''; relevoPassengers=[]; selectedRelevoId=''; flightSearchTimer=null;
+        ['docsYes','docsNo','paceYes','paceNo','walkYes','walkNo'].forEach(id=>{ const el=document.getElementById(id); if(el) el.className='toggle-btn'; });
+        ['wchWCHR','wchWCHS','wchWCHC'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('selected'); });
+        ['tramoCounter','tramoSala'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('selected'); });
+        const plEl=document.getElementById('passengerList'); if(plEl) plEl.innerHTML='';
+        const rdEl=document.getElementById('relevoDataSummary'); if(rdEl) rdEl.style.display='none';
+        const reEl=document.getElementById('relevoEmpty'); if(reEl) reEl.style.display='none';
+        const pmb=document.getElementById('passengerManualBlock'); if(pmb) pmb.style.display='block';
+        const prb=document.getElementById('passengerRelevoBlock'); if(prb) prb.style.display='none';
+        const tbk=document.getElementById('tramoBlock'); if(tbk) tbk.style.display='none';
+        const fdb=document.getElementById('flightDataBlock'); if(fdb) fdb.style.display='none';
+        const btnI=document.getElementById('btnIniciarServicio'); if(btnI) btnI.disabled=true;
+        document.getElementById('photoPreview').style.display='none';
+        document.getElementById('completionScreen').classList.remove('show');
+        document.getElementById('incidentSummaryCard').style.display='none';
+        document.getElementById('flightChip').classList.remove('show');
+        document.getElementById('flightForm').style.display='';
+        document.getElementById('timelineCard').classList.remove('show');
+        document.getElementById('incidentCard').classList.remove('show');
+        document.getElementById('returnCard').classList.remove('show');
+        document.getElementById('qrCard').classList.remove('show');
+        document.getElementById('resumeBanner').classList.remove('show');
+        ['sectionFlight','flightChip','sectionTimeline','sectionQR','sectionIncident','sectionReturn'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=''; });
+        document.getElementById('returnCpCircle').classList.remove('done-state');
+        document.getElementById('returnCpIcon').style.opacity='1';
+        document.getElementById('returnCpCheck').style.opacity='0'; document.getElementById('returnCpCheck').style.transform='scale(0.5)';
+        document.getElementById('returnTapLabel').classList.add('show');
+        document.getElementById('returnDoneCheck').classList.remove('show');
+        document.getElementById('returnCpTime').classList.remove('show');
+        document.getElementById('returnCpItem').classList.remove('done');
+        renderTimeline(); updateProgress(); scrollToTop();
+    }
+
+    function updateProgress(){
+        let done=0;
+        if(timestamps[0]) done++;
+        if(checkpointProgress>=1) done++;
+        if(checkpointProgress>=2) done++;
+        if(checkpointProgress>=3) done++;
+        if(timestamps[4]) done++;
+        if(timestamps[5]) done++;
+        document.getElementById('progressBar').style.width=Math.round((done/6)*100)+'%';
+        const steps=['✈️ INFORMACIÓN DE VUELO','🦽 SILLA ASIGNADA','🚀 INICIO DE SERVICIO','🏁 FINALIZACIÓN','🚨 INCIDENTE','♻️ RETORNO DE SILLA','✅ COMPLETADO'];
+        document.getElementById('stepCounter').textContent=steps[Math.min(done,steps.length-1)];
+    }
+
+    function sendToSheet(step,item,timestamp,onDone){
+        const cbName='sillaCb'+Date.now()+'_'+step;
+        window[cbName]=function(response){
+            delete window[cbName];
+            const scr=document.getElementById('silla-script'); if(scr) scr.remove();
+            if(response&&response.success){ if(onDone) onDone(response); }
+            else{ hideSending(); showToast('❌ Error: '+(response?response.message:'conexión'),'error'); if(onDone) onDone({success:false}); }
+        };
+        let url=SCRIPT_URL+'?user='+encodeURIComponent(currentUser.username)+'&role='+encodeURIComponent(currentUser.role)+'&step='+step+'&item='+encodeURIComponent(item)+'&timestamp='+encodeURIComponent(timestamp)+'&callback='+cbName;
+        if(step===0){
+            url+='&serviceType='+encodeURIComponent(serviceType)+'&reportId='+encodeURIComponent(reportId);
+            url+='&tramoType='+encodeURIComponent(tramoType);
+            url+='&passengerName='+encodeURIComponent(passengerName);
+            url+='&seatNumber='+encodeURIComponent(seatNumber);
+            url+='&wchType='+encodeURIComponent(wchType);
+            url+='&hasDocs='+encodeURIComponent(hasDocs);
+            url+='&hasPacemaker='+encodeURIComponent(hasPacemaker);
+            url+='&canWalk='+encodeURIComponent(canWalk);
+            if(selectedRelevoId) url+='&relevoPassengerId='+encodeURIComponent(selectedRelevoId);
+            if(isResume&&resumeRowId) url+='&resumeRowId='+encodeURIComponent(resumeRowId);
+        }
+        const scr=document.createElement('script'); scr.id='silla-script'; scr.src=url;
+        scr.onerror=()=>{ delete window[cbName]; scr.remove(); hideSending(); showToast('❌ Error de conexión','error'); if(onDone) onDone({success:false}); };
+        document.body.appendChild(scr);
+        setTimeout(()=>{ if(window[cbName]){ delete window[cbName]; hideSending(); showToast('⏱ Tiempo agotado','error'); if(onDone) onDone({success:false}); } },15000);
+    }
+
+    function fmtTime(iso){ try{const d=new Date(iso);return d.toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});}catch{return iso;} }
+    function fmtTimestamp(iso){ try{const d=new Date(iso);return d.toLocaleDateString('es-CR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit',hour12:false});}catch{return iso;} }
+    function scrollTo(id){ const el=document.getElementById(id); if(el) setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),160); }
+    function scrollToTop(){ const c=document.querySelector('.app-content'); if(c) c.scrollTo({top:0,behavior:'smooth'}); }
+    function showSending(msg){ document.getElementById('sendLabel').textContent=msg||'Guardando…'; document.getElementById('sendingOverlay').classList.add('show'); }
+    function hideSending(){ document.getElementById('sendingOverlay').classList.remove('show'); }
+    function showToast(msg,type=''){
+        const t=document.getElementById('toast');
+        t.textContent=msg; t.className='toast'+(type?' '+type:'');
+        t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800);
+    }
+    function goToHistory(){ window.location.href='HT.html'; }
+    function logout(){ if(confirm('¿Cerrar sesión?')){ sessionStorage.clear(); window.location.href='LT.html'; } }
+    </script>
+</body>
+</html>
