@@ -954,7 +954,7 @@
             currentUser=JSON.parse(raw);
             document.getElementById('usernameDisplay').textContent=currentUser.username;
             document.getElementById('avatarInitial').textContent=(currentUser.username||'?').slice(0,2).toUpperCase();
-        }catch(e){ window.location.href='LT.html'; }
+        }catch(e){ window.location.href='index.html'; }
     })();
 
     /* THREE.JS BG */
@@ -1475,7 +1475,7 @@
         t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800);
     }
     function goToHistory(){ window.location.href='HT.html'; }
-    function logout(){ if(confirm('¿Cerrar sesión?')){ sessionStorage.clear(); window.location.href='LT.html'; } }
+    function logout(){ if(confirm('¿Cerrar sesión?')){ sessionStorage.clear(); window.location.href='index.html'; } }
     </script>
 </body>
 </html>
