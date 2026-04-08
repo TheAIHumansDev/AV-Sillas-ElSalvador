@@ -1452,6 +1452,8 @@
             url+='&hasDocs='+encodeURIComponent(hasDocs);
             url+='&hasPacemaker='+encodeURIComponent(hasPacemaker);
             url+='&canWalk='+encodeURIComponent(canWalk);
+            url+='&airline='+encodeURIComponent(airlineCode);   // ← AGREGAR
+            url+='&flight='+encodeURIComponent(flightNum);      // ← AGREGAR
             if(selectedRelevoId) url+='&relevoPassengerId='+encodeURIComponent(selectedRelevoId);
             if(isResume&&resumeRowId) url+='&resumeRowId='+encodeURIComponent(resumeRowId);
         }
