@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de Sillas - Wheelchair Services</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap');
+
+        :root {
+            --green: #10b981;
+            --blue: #3b82f6;
+            --yellow: #f59e0b;
+            --red: #ef4444;
+            --purple: #8b5cf6;
+            --bg: #050816;
+            --surface: rgba(15, 23, 42, 0.85);
+            --border: rgba(16, 185, 129, 0.2);
+            --text: #e2e8f0;
+            --muted: #64748b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Syne', sans-serif;
+            background: var(--bg);
+            min-height: 100vh; min-height: 100dvh;
+            overflow-x: hidden; color: var(--text);
+        }
+
+        #canvas-container {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; z-index: 1;
+            pointer-events: none;
+        }
+
+        .app {
+            position: relative; z-index: 2;
+            min-height: 100vh; min-height: 100dvh;
+            display: flex; flex-direction: column;
+            max-width: 480px; margin: 0 auto;
+        }
+
+        /* ── HEADER ── */
+        .header {
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(5, 8, 22, 0.75);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            position: sticky; top: 0; z-index: 10;
+        }
+
+        .header-top {
+            display: flex; align-items: center;
+            justify-content: space-between; margin-bottom: 12px;
+        }
+
+        .header-brand { display: flex; align-items: center; gap: 9px; }
+
+        .logo-icon {
+            width: 34px; height: 34px;
+            background: linear-gradient(135deg, var(--green), var(--blue));
+            border-radius: 9px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 17px; flex-shrink: 0;
+        }
+
+        .logo-text {
+            font-size: 16px; font-weight: 800;
+            background: linear-gradient(135deg, var(--green) 0%, var(--blue) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            line-height: 1.1;
+        }
+        .logo-sub {
+            font-size: 9px; color: var(--muted);
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 2px; text-transform: uppercase;
+        }
+
+        .header-meta { display: flex; align-items: center; gap: 8px; }
+
+        .user-chip {
+            display: flex; align-items: center; gap: 7px;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid var(--border);
+            border-radius: 20px; padding: 5px 10px 5px 5px;
+        }
+        .user-chip .avatar {
+            width: 24px; height: 24px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--green), var(--blue));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: 700; color: #fff;
+        }
+        .user-chip .name { font-size: 12px; font-weight: 600; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .user-chip .role { font-size: 9px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+
+        .btn-logout {
+            padding: 6px 12px;
+            background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 8px; color: #fca5a5;
+            font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+            font-family: 'Syne', sans-serif; white-space: nowrap;
+        }
+        .btn-logout:active { background: rgba(239,68,68,0.25); }
+
+        .btn-new-wrap { display: flex; justify-content: center; }
+
+        .btn-new {
+            width: 100%; padding: 13px 20px;
+            background: linear-gradient(135deg, var(--green), var(--blue));
+            border: none; border-radius: 12px;
+            color: #fff; font-size: 15px; font-weight: 700;
+            cursor: pointer; transition: all 0.18s;
+            font-family: 'Syne', sans-serif; letter-spacing: 0.3px;
+            box-shadow: 0 4px 18px rgba(16,185,129,0.35);
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-new:active { transform: scale(0.97); box-shadow: 0 2px 8px rgba(16,185,129,0.25); }
+
+        /* ── MAIN ── */
+        .main { padding: 16px; flex: 1; }
+
+        /* ── STATS ── */
+        .stats-row {
+            display: grid; grid-template-columns: repeat(2, 1fr);
+            gap: 10px; margin-bottom: 16px;
+        }
+
+        .stat-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 14px; padding: 14px 16px;
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        }
+
+        .stat-label {
+            font-size: 9px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 2px;
+            color: var(--muted); font-family: 'JetBrains Mono', monospace; margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 28px; font-weight: 800;
+            background: linear-gradient(135deg, var(--green), var(--blue));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1;
+        }
+        .stat-value.green { background: linear-gradient(135deg, var(--green), #059669); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .stat-value.yellow { background: linear-gradient(135deg, var(--yellow), #d97706); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        /* ── TOOLBAR ── */
+        .toolbar {
+            display: flex; align-items: center;
+            justify-content: space-between; margin-bottom: 12px; gap: 8px;
+        }
+        .toolbar-title {
+            font-size: 16px; font-weight: 800;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .live-badge {
+            display: flex; align-items: center; gap: 5px;
+            font-size: 10px; font-weight: 600;
+            color: var(--green); font-family: 'JetBrains Mono', monospace;
+        }
+        .live-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--green); animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.7); } }
+
+        .filter-pills {
+            display: flex; gap: 6px; margin-bottom: 12px;
+            overflow-x: auto; -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; padding-bottom: 2px;
+        }
+        .filter-pills::-webkit-scrollbar { display: none; }
+        .filter-pill {
+            padding: 6px 14px;
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(16, 185, 129, 0.15);
+            border-radius: 20px; font-size: 12px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; color: var(--muted);
+            font-family: 'JetBrains Mono', monospace; white-space: nowrap; flex-shrink: 0;
+        }
+        .filter-pill.active { background: rgba(16, 185, 129, 0.15); border-color: var(--green); color: var(--green); }
+        .filter-pill:active { opacity: 0.7; }
+
+        .refresh-btn {
+            width: 34px; height: 34px; flex-shrink: 0;
+            background: rgba(16, 185, 129, 0.1); border: 1px solid var(--border);
+            border-radius: 10px; color: var(--green);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s; font-size: 17px;
+        }
+        .refresh-btn:active { background: rgba(16, 185, 129, 0.25); }
+        .refresh-btn.spinning { animation: spin 0.7s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── REPORT CARDS ── */
+        .reports-list { display: flex; flex-direction: column; gap: 10px; }
+
+        .report-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; overflow: hidden; cursor: pointer;
+            transition: all 0.22s; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            animation: cardIn 0.35s ease both;
+        }
+        @keyframes cardIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .report-card:active { transform: scale(0.985); }
+        .report-card.status-completado { border-left: 3px solid var(--green); }
+        .report-card.status-en-proceso { border-left: 3px solid var(--yellow); }
+
+        .report-header {
+            padding: 13px 14px;
+            display: flex; align-items: center;
+            justify-content: space-between; gap: 10px;
+        }
+
+        .report-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+
+        .wch-badge {
+            width: 42px; height: 42px; border-radius: 11px;
+            background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(59,130,246,0.2));
+            border: 1px solid rgba(16,185,129,0.3);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; flex-shrink: 0;
+        }
+
+        .report-info { flex: 1; min-width: 0; }
+        .report-title {
+            font-size: 14px; font-weight: 700;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            display: flex; align-items: center; gap: 7px;
+        }
+        .service-tag {
+            font-size: 9px; font-weight: 700;
+            padding: 2px 7px; border-radius: 5px;
+            font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
+        }
+        .tag-sala      { background: rgba(59,130,246,0.15);  color: var(--blue);   }
+        .tag-abordaje  { background: rgba(16,185,129,0.15);  color: var(--green);  }
+        .tag-desabordaje { background: rgba(245,158,11,0.15); color: var(--yellow); }
+        .tag-otro      { background: rgba(139,92,246,0.15);  color: var(--purple); }
+
+        .report-meta {
+            font-size: 11px; color: var(--muted);
+            font-family: 'JetBrains Mono', monospace; margin-top: 2px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        .report-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+        .status-chip {
+            padding: 3px 10px; border-radius: 20px;
+            font-size: 10px; font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase; letter-spacing: 0.3px;
+        }
+        .chip-completado { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+        .chip-en-proceso { background: rgba(245,158,11,0.15); color: var(--yellow); border: 1px solid rgba(245,158,11,0.3); }
+
+        .chevron { color: var(--muted); font-size: 18px; transition: transform 0.25s; }
+        .report-card.expanded .chevron { transform: rotate(90deg); }
+
+        /* ── DETAIL PANEL ── */
+        .report-detail {
+            max-height: 0; overflow: hidden;
+            transition: max-height 0.35s ease;
+            padding: 0 14px; border-top: 0px solid transparent;
+        }
+        .report-card.expanded .report-detail {
+            max-height: 1200px; padding: 0 14px 14px;
+            border-top: 1px solid var(--border);
+        }
+
+        .detail-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 8px; margin-bottom: 12px; padding-top: 12px;
+        }
+        .detail-item {
+            background: rgba(30,41,59,0.4);
+            border: 1px solid rgba(16,185,129,0.1);
+            border-radius: 9px; padding: 9px 11px;
+        }
+        .detail-item .d-label {
+            font-size: 9px; color: var(--muted);
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;
+        }
+        .detail-item .d-value { font-size: 13px; font-weight: 600; }
+
+        /* Tiempos table */
+        .times-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .times-table th {
+            text-align: left; padding: 6px 8px;
+            font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px;
+            color: var(--muted); font-family: 'JetBrains Mono', monospace;
+            border-bottom: 1px solid rgba(16,185,129,0.15);
+        }
+        .times-table td {
+            padding: 6px 8px; font-size: 11px;
+            border-bottom: 1px solid rgba(30,41,59,0.5);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .times-table tr:last-child td { border-bottom: none; }
+
+        .btn-resume {
+            width: 100%; margin-top: 12px; padding: 13px;
+            background: linear-gradient(135deg, var(--green), var(--blue));
+            border: none; border-radius: 10px; color: #fff;
+            font-size: 14px; font-weight: 700; cursor: pointer;
+            transition: all 0.2s; font-family: 'Syne', sans-serif;
+        }
+        .btn-resume:active { transform: scale(0.97); }
+
+        /* ── EMPTY STATE ── */
+        .empty-state {
+            text-align: center; padding: 50px 20px;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 18px; backdrop-filter: blur(12px);
+        }
+        .empty-icon { font-size: 48px; margin-bottom: 14px; }
+        .empty-title { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+        .empty-sub { color: var(--muted); font-size: 13px; }
+
+        /* ── SKELETON ── */
+        .skeleton {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; padding: 16px;
+            animation: shimmer 1.4s ease-in-out infinite;
+        }
+        @keyframes shimmer { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+        .skel-line { height: 13px; border-radius: 6px; background: rgba(16,185,129,0.1); margin-bottom: 8px; }
+        .skel-line.short { width: 40%; }
+        .skel-line.med   { width: 65%; }
+
+        /* ── DUPLICATE BANNER ── */
+        .duplicate-banner {
+            background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.35);
+            border-radius: 12px; padding: 10px 14px; margin-bottom: 12px;
+            display: none; font-size: 12px; color: #fcd34d; line-height: 1.4;
+        }
+        .duplicate-banner.visible { display: block; }
+
+        /* ── TOAST ── */
+        .toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px);
+            background: rgba(16,185,129,0.92); backdrop-filter: blur(10px);
+            color: #fff; padding: 11px 22px; border-radius: 24px;
+            font-size: 13px; font-weight: 600; z-index: 100; opacity: 0;
+            transition: all 0.3s ease; font-family: 'JetBrains Mono', monospace; white-space: nowrap;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .toast.error { background: rgba(239,68,68,0.92); }
+    </style>
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-1PYNBFGPML"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-1PYNBFGPML');
+    </script>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div class="app">
+        <header class="header">
+            <div class="header-top">
+                <div class="header-brand">
+                    <div class="logo-icon">♿</div>
+                    <div>
+                        <div class="logo-text">Reporte de Sillas</div>
+                        <div class="logo-sub">Wheelchair Services</div>
+                    </div>
+                </div>
+                <div class="header-meta">
+                    <div class="user-chip">
+                        <div class="avatar" id="avatarInitial">?</div>
+                        <div>
+                            <div class="name" id="userNameDisplay">–</div>
+                            <div class="role" id="userRoleDisplay">–</div>
+                        </div>
+                    </div>
+                    <button class="btn-logout" onclick="logout()">Salir</button>
+                </div>
+            </div>
+            <div class="btn-new-wrap">
+                <button class="btn-new" onclick="goToNewReport()">
+                    ♿ + Nuevo Reporte de Silla
+                </button>
+            </div>
+        </header>
+
+        <main class="main">
+            <!-- Stats -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-label">Total</div>
+                    <div class="stat-value" id="statTotal">–</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Completados</div>
+                    <div class="stat-value green" id="statDone">–</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">En Proceso</div>
+                    <div class="stat-value yellow" id="statPending">–</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Hoy</div>
+                    <div class="stat-value" id="statToday">–</div>
+                </div>
+            </div>
+
+            <!-- Duplicate warning -->
+            <div class="duplicate-banner" id="duplicateBanner">
+                ⚠️ <span id="duplicateMsg">Tienes reportes sin completar activos.</span>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="toolbar">
+                <div class="toolbar-title">
+                    ♿ Mis Reportes
+                    <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+                </div>
+                <div class="refresh-btn" id="refreshBtn" onclick="loadReports(true)">↻</div>
+            </div>
+            <div class="filter-pills">
+                <button class="filter-pill active" onclick="setFilter('all', this)">Todos</button>
+                <button class="filter-pill" onclick="setFilter('Completado', this)">Completados</button>
+                <button class="filter-pill" onclick="setFilter('En Proceso', this)">En Proceso</button>
+            </div>
+
+            <!-- List -->
+            <div class="reports-list" id="reportsList">
+                <div class="skeleton" id="skeleton1"><div class="skel-line med"></div><div class="skel-line short"></div></div>
+                <div class="skeleton" id="skeleton2"><div class="skel-line med"></div><div class="skel-line short"></div></div>
+            </div>
+        </main>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ── CONFIG ──
+        const HISTORY_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwheYKBzkthxzge-zD4HmKRu9J1ZetWG0BtqSp-c4IAq8sLpIU31CJey2Y25kboLf7w/exec';
+
+        let currentUser    = null;
+        let allReports     = [];
+        let currentFilter  = 'all';
+        let pendingCallback = null;   // ← FIX: rastrear callback activo para cancelarlo
+        const REFRESH_INTERVAL = 30000;
+
+        // ── Auth check ──
+        const userDataStr = sessionStorage.getItem('user');
+        if (!userDataStr) {
+            alert('Sesión no encontrada. Por favor inicie sesión.');
+            window.location.href = 'index.html';
+        } else {
+            try {
+                currentUser = JSON.parse(userDataStr);
+                initUI();
+                loadReports();
+                setInterval(() => loadReports(false), REFRESH_INTERVAL);
+            } catch(e) {
+                window.location.href = 'index.html';
+            }
+        }
+
+        function initUI() {
+            document.getElementById('userNameDisplay').textContent = currentUser.username;
+            document.getElementById('userRoleDisplay').textContent = currentUser.role;
+            document.getElementById('avatarInitial').textContent =
+                (currentUser.username || '?').slice(0, 2).toUpperCase();
+        }
+
+        // ── Three.js background ──
+        const container = document.getElementById('canvas-container');
+        const scene     = new THREE.Scene();
+        const cam3      = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer  = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container.appendChild(renderer.domElement);
+        const pg = new THREE.BufferGeometry();
+        const pc = 2000;
+        const pa = new Float32Array(pc * 3);
+        for (let i = 0; i < pc * 3; i++) pa[i] = (Math.random() - 0.5) * 100;
+        pg.setAttribute('position', new THREE.BufferAttribute(pa, 3));
+        const pm  = new THREE.PointsMaterial({ size: 0.06, color: 0x10b981, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending });
+        const pts = new THREE.Points(pg, pm);
+        scene.add(pts);
+        cam3.position.z = 30;
+        (function anim() { requestAnimationFrame(anim); pts.rotation.y += 0.0008; renderer.render(scene, cam3); })();
+        window.addEventListener('resize', () => {
+            cam3.aspect = window.innerWidth / window.innerHeight;
+            cam3.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ============================================================
+        //  LOAD REPORTS — con cancelación de petición anterior (FIX B)
+        // ============================================================
+        function loadReports(manual = false) {
+            if (manual) {
+                const rb = document.getElementById('refreshBtn');
+                rb.classList.add('spinning');
+                setTimeout(() => rb.classList.remove('spinning'), 700);
+            }
+
+            // FIX B: cancelar callback pendiente para evitar race condition
+            if (pendingCallback) {
+                delete window[pendingCallback];
+                const prev = document.getElementById('jsonp-sillas');
+                if (prev) prev.remove();
+                pendingCallback = null;
+            }
+
+            const cbName = 'sillaCb' + Date.now();
+            pendingCallback = cbName;
+
+            const url = `${HISTORY_SCRIPT_URL}?action=getSillasHistory&inspector=${encodeURIComponent(currentUser.username)}&callback=${cbName}`;
+
+            window[cbName] = function(data) {
+                // FIX B: ignorar si llegó una respuesta de una petición más antigua
+                if (pendingCallback !== cbName) return;
+                delete window[cbName];
+                pendingCallback = null;
+                const s = document.getElementById('jsonp-sillas');
+                if (s) s.remove();
+
+                if (data && data.success) {
+                    // FIX A+C: deduplicar por numeroReporte — si el sheet tiene filas con
+                    // el mismo ID (no debería), se conserva la más reciente.
+                    // Reportes de DISTINTO vuelo con el MISMO número de vuelo se muestran
+                    // TODOS porque tienen diferente numeroReporte.
+                    const seen = new Map();
+                    (data.reports || []).forEach(function(r) {
+                        const key = String(r.numeroReporte || '').trim();
+                        if (!key) {
+                            // Sin número de reporte: usar clave compuesta para no descartar
+                            const fallbackKey = [
+                                r.aerolinea || '',
+                                r.vuelo      || '',
+                                r.fechaCreacion || '',
+                                r.horaCreacion  || ''
+                            ].join('|');
+                            if (!seen.has(fallbackKey)) seen.set(fallbackKey, r);
+                            return;
+                        }
+                        if (!seen.has(key)) {
+                            seen.set(key, r);
+                        } else {
+                            // Conservar el más reciente si hay colisión de ID
+                            const existing = seen.get(key);
+                            if (parseReportDate(r) > parseReportDate(existing)) {
+                                seen.set(key, r);
+                            }
+                        }
+                    });
+
+                    allReports = Array.from(seen.values());
+                    renderReports();
+                    updateStats();
+                    checkDuplicates();
+                    if (manual) showToast('✓ Actualizado — ' + allReports.length + ' reportes');
+                } else {
+                    allReports = [];
+                    renderReports();
+                    updateStats();
+                    if (manual) showToast('⚠ Sin datos del servidor', true);
+                }
+            };
+
+            const script = document.createElement('script');
+            script.id  = 'jsonp-sillas';
+            script.src = url;
+            script.onerror = function() {
+                if (pendingCallback === cbName) {
+                    delete window[cbName];
+                    pendingCallback = null;
+                }
+                script.remove();
+                if (manual) showToast('Error de conexión', true);
+            };
+            document.body.appendChild(script);
+
+            // Timeout de seguridad
+            setTimeout(function() {
+                if (window[cbName]) {
+                    delete window[cbName];
+                    if (pendingCallback === cbName) pendingCallback = null;
+                    const s = document.getElementById('jsonp-sillas');
+                    if (s) s.remove();
+                    renderReports();
+                    updateStats();
+                }
+            }, 12000);
+        }
+
+        // ── RENDER ──
+        function renderReports() {
+            const list = document.getElementById('reportsList');
+
+            const filtered = currentFilter === 'all'
+                ? allReports
+                : allReports.filter(r => r.estado === currentFilter);
+
+            if (filtered.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">♿</div>
+                        <div class="empty-title">${currentFilter === 'all' ? 'Sin reportes aún' : 'Sin reportes con este filtro'}</div>
+                        <div class="empty-sub">Tus reportes de sillas aparecerán aquí.</div>
+                    </div>`;
+                return;
+            }
+
+            // FIX C: sort estable con desempate por numeroReporte
+            const sorted = [...filtered].sort(function(a, b) {
+                const da = parseReportDate(a);
+                const db = parseReportDate(b);
+                if (db !== da) return db - da;
+                // Desempate: número de reporte descendente
+                return String(b.numeroReporte || '').localeCompare(String(a.numeroReporte || ''));
+            });
+
+            list.innerHTML = sorted.map((r, i) => buildCard(r, i)).join('');
+        }
+
+        // ── Helper: parsear fecha de un reporte ──
+        // ── parseReportDate: DD/MM/YYYY HH:MM:SS → timestamp local ──
+        // IMPORTANTE: nunca usar new Date('DD/MM/YYYY') directamente porque
+        // los motores JS (V8, Safari) lo interpretan como MM/DD/YYYY (formato
+        // norteamericano) y cambian el día por el mes.
+        // Se extrae cada componente numérico de forma explícita.
+        function parseReportDate(r) {
+            try {
+                if (r.fechaCreacion) {
+                    const parts = r.fechaCreacion.split('/');
+                    if (parts.length === 3) {
+                        const dia  = parseInt(parts[0], 10);  // partes[0] = DD
+                        const mes  = parseInt(parts[1], 10);  // parts[1]  = MM (1-12)
+                        const anio = parseInt(parts[2], 10);  // parts[2]  = YYYY
+                        const timeParts = (r.horaCreacion || '00:00:00').split(':');
+                        const hh = parseInt(timeParts[0] || '0', 10);
+                        const mm = parseInt(timeParts[1] || '0', 10);
+                        const ss = parseInt(timeParts[2] || '0', 10);
+                        // new Date(año, mes-1, día, hh, mm, ss) → siempre hora local
+                        const ts = new Date(anio, mes - 1, dia, hh, mm, ss).getTime();
+                        return isNaN(ts) ? 0 : ts;
+                    }
+                }
+                if (r.timestamp) return new Date(r.timestamp).getTime();
+                return 0;
+            } catch(_) { return 0; }
+        }
+
+        // ── Determina tipo de servicio desde los campos booleanos ──
+        function getServiceType(r) {
+            if (r.asistenciaSala) return { label: 'SALA',        cls: 'tag-sala'        };
+            if (r.abordaje)       return { label: 'ABORDAJE',    cls: 'tag-abordaje'    };
+            if (r.desabordaje)    return { label: 'DESABORDAJE', cls: 'tag-desabordaje' };
+            if (r.otro)           return { label: 'OTRO',        cls: 'tag-otro'        };
+            // Fallback: campo tramo o tipoServicio del sheet
+            if (r.tramo) {
+                const t = String(r.tramo).toLowerCase();
+                if (t.includes('sala'))                            return { label: 'SALA',        cls: 'tag-sala'        };
+                if (t.includes('abordaje') && !t.includes('des')) return { label: 'ABORDAJE',    cls: 'tag-abordaje'    };
+                if (t.includes('desabordaje'))                     return { label: 'DESABORDAJE', cls: 'tag-desabordaje' };
+                if (t.includes('counter'))                         return { label: 'COUNTER',     cls: 'tag-sala'        };
+                if (t.includes('inspeccion'))                      return { label: 'INSPECC.',    cls: 'tag-abordaje'    };
+            }
+            if (r.tipoServicio) {
+                const t = String(r.tipoServicio).toLowerCase();
+                if (t.includes('sala'))                            return { label: 'SALA',        cls: 'tag-sala'        };
+                if (t.includes('abordaje') && !t.includes('des')) return { label: 'ABORDAJE',    cls: 'tag-abordaje'    };
+                if (t.includes('desabordaje'))                     return { label: 'DESABORDAJE', cls: 'tag-desabordaje' };
+            }
+            return { label: 'SERVICIO', cls: 'tag-sala' };
+        }
+
+        function buildCard(r, idx) {
+            const estado      = r.estado || 'En Proceso';
+            const statusClass = estado === 'Completado' ? 'completado' : 'en-proceso';
+            const chipClass   = estado === 'Completado' ? 'chip-completado' : 'chip-en-proceso';
+            const svcType     = getServiceType(r);
+            const airline     = r.aerolinea || r.airline || '–';
+            const vuelo       = r.vuelo     || r.flightNumber || '–';
+            const dt          = r.fechaCreacion
+                ? `${r.fechaCreacion} ${r.horaCreacion || ''}`.trim()
+                : (r.timestamp ? formatDateTimeStr(r.timestamp) : '–');
+            const numReporte  = r.numeroReporte || r.id || '–';
+            const wchNum      = r.wchNumber || r.numeroSilla || r.asiento || '';
+            const wchType     = r.wchType || '';
+            const pasajero    = r.pasajero || '';
+
+            const tieneIncidente = r.descripcionIncidente &&
+                r.descripcionIncidente !== 'Sin incidentes reportados' &&
+                r.descripcionIncidente !== '';
+
+            // Botón retomar: serializar como JSON en data-attribute (evita problemas con comillas)
+            const resumeBtn = estado !== 'Completado' ? `
+                <button class="btn-resume" data-report-idx="${idx}" onclick="resumeFromCard(this)">
+                    ▶ Retomar Reporte
+                </button>` : '';
+
+            const incidentHtml = tieneIncidente ? `
+                <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:10px 12px;margin-top:10px;">
+                    <div style="font-size:11px;color:#fca5a5;font-weight:700;font-family:'JetBrains Mono',monospace;margin-bottom:4px;">⚠ INCIDENTE</div>
+                    <div style="font-size:12px;color:var(--text);">${escapeHtml(r.descripcionIncidente)}</div>
+                </div>` : '';
+
+            const tiemposHtml = `
+                <table class="times-table">
+                    <thead>
+                        <tr>
+                            <th>Evento</th>
+                            <th>Fecha</th>
+                            <th>Hora</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${r.fechaCreacion       ? `<tr><td>🕐 Creación</td><td>${r.fechaCreacion}</td><td>${r.horaCreacion || '–'}</td></tr>` : ''}
+                        ${r.fechaAsignacion     ? `<tr><td>📋 Asignación</td><td>${r.fechaAsignacion}</td><td>${r.horaAsignacion || '–'}</td></tr>` : ''}
+                        ${r.fechaInicioServicio ? `<tr><td>▶ Inicio Servicio</td><td>${r.fechaInicioServicio}</td><td>${r.horaInicioServicio || '–'}</td></tr>` : ''}
+                        ${r.fechaFinServicio    ? `<tr><td>✅ Fin Servicio</td><td>${r.fechaFinServicio}</td><td>${r.horaFinServicio || '–'}</td></tr>` : ''}
+                        ${r.fechaRetorno        ? `<tr><td>🔄 Retorno</td><td>${r.fechaRetorno}</td><td>${r.horaRetorno || '–'}</td></tr>` : ''}
+                    </tbody>
+                </table>`;
+
+            // Campos extra: pasajero, wchType, tramo
+            const extraFields = `
+                ${pasajero ? `
+                <div class="detail-item" style="grid-column:1/-1">
+                    <div class="d-label">Pasajero</div>
+                    <div class="d-value">${escapeHtml(pasajero)}</div>
+                </div>` : ''}
+                ${wchType ? `
+                <div class="detail-item">
+                    <div class="d-label">Tipo WCH</div>
+                    <div class="d-value">${escapeHtml(wchType)}</div>
+                </div>` : ''}
+                ${r.tramo ? `
+                <div class="detail-item">
+                    <div class="d-label">Tramo</div>
+                    <div class="d-value" style="font-size:11px;">${escapeHtml(r.tramo)}</div>
+                </div>` : ''}
+                ${r.hasDocs ? `
+                <div class="detail-item">
+                    <div class="d-label">Documentos</div>
+                    <div class="d-value">${escapeHtml(r.hasDocs)}</div>
+                </div>` : ''}
+                ${r.canWalk ? `
+                <div class="detail-item">
+                    <div class="d-label">Puede Caminar</div>
+                    <div class="d-value">${escapeHtml(r.canWalk)}</div>
+                </div>` : ''}
+                ${r.hasPacemaker ? `
+                <div class="detail-item">
+                    <div class="d-label">Marcapasos</div>
+                    <div class="d-value">${escapeHtml(r.hasPacemaker)}</div>
+                </div>` : ''}`;
+
+            return `
+                <div class="report-card status-${statusClass}" style="animation-delay:${idx * 0.05}s" onclick="toggleCard(this)" data-report-num="${escapeHtml(String(numReporte))}">
+                    <div class="report-header">
+                        <div class="report-left">
+                            <div class="wch-badge">♿</div>
+                            <div class="report-info">
+                                <div class="report-title">
+                                    ${escapeHtml(airline)} · ${escapeHtml(vuelo)}
+                                    <span class="service-tag ${svcType.cls}">${svcType.label}</span>
+                                </div>
+                                <div class="report-meta">
+                                    📅 ${dt}${wchNum ? ` · 🪑 ${escapeHtml(String(wchNum))}` : ''}${wchType ? ` · ${escapeHtml(wchType)}` : ''}
+                                    ${tieneIncidente ? '&nbsp;·&nbsp;<span style="color:var(--red);">⚠ Incidente</span>' : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="report-right">
+                            <span class="status-chip ${chipClass}">${estado}</span>
+                            <div class="chevron">›</div>
+                        </div>
+                    </div>
+                    <div class="report-detail">
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <div class="d-label">Reporte #</div>
+                                <div class="d-value" style="font-size:11px;">${escapeHtml(String(numReporte))}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="d-label">Aerolínea</div>
+                                <div class="d-value">${escapeHtml(airline)}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="d-label">Vuelo</div>
+                                <div class="d-value">${escapeHtml(vuelo)}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="d-label">Usuario</div>
+                                <div class="d-value">${escapeHtml(r.usuario || currentUser.username)}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="d-label">Servicio</div>
+                                <div class="d-value">${svcType.label}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="d-label">Duración</div>
+                                <div class="d-value">${r.minServicio !== undefined && r.minServicio !== '' ? r.minServicio + ' min' : '–'}</div>
+                            </div>
+                            ${extraFields}
+                        </div>
+                        <div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">⏱ Tiempos Registrados</div>
+                        ${tiemposHtml}
+                        ${incidentHtml}
+                        ${resumeBtn}
+                    </div>
+                </div>`;
+        }
+
+        // ── STATS ──
+        function updateStats() {
+            const today   = new Date().toDateString();
+            const done    = allReports.filter(r => r.estado === 'Completado').length;
+            const pending = allReports.filter(r => r.estado !== 'Completado').length;
+            const todayCount = allReports.filter(function(r) {
+                const ts = parseReportDate(r);
+                if (!ts) return false;
+                return new Date(ts).toDateString() === today;
+            }).length;
+
+            document.getElementById('statTotal').textContent   = allReports.length;
+            document.getElementById('statDone').textContent    = done;
+            document.getElementById('statPending').textContent = pending;
+            document.getElementById('statToday').textContent   = todayCount;
+        }
+
+        // ── DUPLICATE CHECK ──
+        function checkDuplicates() {
+            const inProgress = allReports.filter(r => r.estado === 'En Proceso');
+            const banner     = document.getElementById('duplicateBanner');
+            if (inProgress.length > 0) {
+                banner.classList.add('visible');
+                const list = inProgress
+                    .map(r => `${r.aerolinea || ''} ${r.vuelo || ''}`.trim() || r.numeroReporte || 'S/N')
+                    .join(', ');
+                document.getElementById('duplicateMsg').textContent =
+                    `⚠️ Tienes ${inProgress.length} reporte(s) sin completar: ${list}. ¿Deseas retomarlo?`;
+            } else {
+                banner.classList.remove('visible');
+            }
+        }
+
+        function toggleCard(el) {
+            // Evitar que el click en el botón "Retomar" expanda/contraiga la card
+            el.classList.toggle('expanded');
+        }
+
+        function setFilter(f, el) {
+            currentFilter = f;
+            document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+            el.classList.add('active');
+            renderReports();
+        }
+
+        // ── RESUME REPORT — usando índice en allReports para evitar serialización rota ──
+        function resumeFromCard(btn) {
+            event.stopPropagation();
+            const idx    = parseInt(btn.getAttribute('data-report-idx'));
+            // Buscar el reporte en la lista renderizada actual (sorted), no en allReports directo
+            const sorted = getSortedFiltered();
+            const report = sorted[idx];
+            if (report) {
+                sessionStorage.setItem('resumeSillaReport', JSON.stringify(report));
+                window.location.href = 'RT.html';
+            }
+        }
+
+        function getSortedFiltered() {
+            const filtered = currentFilter === 'all'
+                ? allReports
+                : allReports.filter(r => r.estado === currentFilter);
+            return [...filtered].sort(function(a, b) {
+                const da = parseReportDate(a);
+                const db = parseReportDate(b);
+                if (db !== da) return db - da;
+                return String(b.numeroReporte || '').localeCompare(String(a.numeroReporte || ''));
+            });
+        }
+
+        // ── NEW REPORT ──
+        function goToNewReport() {
+            sessionStorage.removeItem('resumeSillaReport');
+            window.location.href = 'RT.html';
+        }
+
+        function logout() {
+            if (confirm('¿Cerrar sesión?')) {
+                sessionStorage.clear();
+                window.location.href = 'index.html';
+            }
+        }
+
+        function formatDateTimeStr(ts) {
+            try {
+                const d = new Date(ts);
+                if (isNaN(d.getTime())) return ts;
+                return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
+                    + ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+            } catch(_) { return ts; }
+        }
+
+        // FIX: escapeHtml para evitar XSS al inyectar datos del sheet en innerHTML
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function showToast(msg, isErr = false) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className   = 'toast' + (isErr ? ' error' : '');
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2800);
+        }
+    </script>
+</body>
+</html>
