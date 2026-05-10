@@ -1812,34 +1812,57 @@ function handleExcelFile(file) {
 function parseExcel(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
-    const wb = XLSX.read(e.target.result, { type: 'array' });
+    const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
     const ws = wb.Sheets[wb.SheetNames[0]];
-    const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    // raw incluye todas las columnas desde A; la hoja empieza en B por eso col[0] es siempre null
+    const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
 
-    // Detectar filas de vuelos: buscar filas donde col[2] es número (índice del vuelo)
+    // Helper: convierte valor de celda hora a "HH:MM" y minutos
+    // SheetJS con cellDates:true entrega la hora como string "HH:MM:SS" o Date
+    function parseHora(val) {
+      if (!val || val === '') return { str: '—', mins: -1 };
+      const s = String(val).trim();
+      // Formato "HH:MM" o "HH:MM:SS"
+      const m = s.match(/(\d{1,2}):(\d{2})/);
+      if (m) {
+        const h = parseInt(m[1]), min = parseInt(m[2]);
+        return { str: `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`, mins: h * 60 + min };
+      }
+      // Decimal de Excel (por si acaso)
+      const f = parseFloat(val);
+      if (!isNaN(f) && f < 1) {
+        const total = Math.round(f * 24 * 60);
+        const h = Math.floor(total / 60) % 24, min = total % 60;
+        return { str: `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`, mins: h * 60 + min };
+      }
+      return { str: '—', mins: -1 };
+    }
+
     VUELOS_DATA = [];
     raw.forEach(row => {
-      const idx = row[2];
-      if (typeof idx === 'number' && idx >= 1 && idx <= 60) {
+      // La hoja tiene columna A vacía, datos desde B:
+      // col index: 0=A(vacía), 1=B(vacía), 2=C(#vuelo), 3=D(aerolínea)...
+      const idx = parseInt(row[2]);
+      if (!isNaN(idx) && idx >= 1 && idx <= 60) {
+        const eta = parseHora(row[7]);
+        const etd = parseHora(row[16]);
         VUELOS_DATA.push({
-          num:        idx,
-          aerolinea:  String(row[3] || '').trim(),
-          registro:   String(row[4] || '').trim(),
-          tipo:       String(row[5] || '').trim(),
-          origen:     String(row[6] || '').trim(),
-          etaDecimal: row[7],
-          etaStr:     excelTimeToStr(row[7]),
-          etaMins:    excelTimeToMins(row[7]),
-          vueloLleg:  String(row[8] || '').trim(),
-          posicion:   String(row[9] || '').trim(),
-          sala:       String(row[10] || '').trim(),
-          vueloSal:   String(row[12] || '').trim(),
-          destino:    String(row[13] || '').trim(),
-          pax:        parseInt(row[14]) || 0,
-          etdDecimal: row[15],
-          etdStr:     excelTimeToStr(row[15]),
-          etdMins:    excelTimeToMins(row[15]),
-          propósito:  String(row[16] || '').trim(),
+          num:       idx,
+          aerolinea: String(row[3] || '').replace(/\n/g,' ').trim(),
+          registro:  String(row[4] || '').trim(),
+          tipo:      String(row[5] || '').trim(),
+          origen:    String(row[6] || '').replace(/\n/g,' ').trim(),
+          etaStr:    eta.str,
+          etaMins:   eta.mins,
+          vueloLleg: String(row[8] || '').trim(),
+          posicion:  String(row[10] || '').trim(),
+          sala:      String(row[11] || '').trim(),
+          vueloSal:  String(row[12] || '').trim(),
+          destino:   String(row[14] || '').replace(/\n/g,' ').trim(),
+          pax:       parseInt(row[15]) || 0,
+          etdStr:    etd.str,
+          etdMins:   etd.mins,
+          proposito: String(row[17] || '').trim(),
         });
       }
     });
