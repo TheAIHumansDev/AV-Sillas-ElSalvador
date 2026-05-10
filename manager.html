@@ -1196,7 +1196,7 @@ function simUpdate() {
   const personalXTurno = Math.ceil(minsTotales / (3 * minsPorPersona));
   const personalTotal = personalXTurno * 3;
   const deficit = personalTotal > personal;
-  const supsNecesarios = RULES.minSupXTurno * 1;
+  const supsNecesarios = RULES.minSupXTurno;
 
   const result = document.getElementById('sim-result');
   result.innerHTML = `
