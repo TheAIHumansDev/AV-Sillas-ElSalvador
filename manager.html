@@ -1814,34 +1814,25 @@ function parseExcel(file) {
   reader.onload = (e) => {
     const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
     const ws = wb.Sheets[wb.SheetNames[0]];
-    // raw incluye todas las columnas desde A; la hoja empieza en B por eso col[0] es siempre null
     const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
 
-    // Helper: convierte valor de celda hora a "HH:MM" y minutos
-    // SheetJS con cellDates:true entrega la hora como string "HH:MM:SS" o Date
     function parseHora(val) {
       if (!val || val === '') return { str: '—', mins: -1 };
       const s = String(val).trim();
-      // Formato "HH:MM" o "HH:MM:SS"
-      const m = s.match(/(\d{1,2}):(\d{2})/);
+      // SheetJS cellDates:true entrega time como "HH:MM:SS" o "H:MM:SS"
+      const m = s.match(/^(\d{1,2}):(\d{2})/);
       if (m) {
         const h = parseInt(m[1]), min = parseInt(m[2]);
-        return { str: `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`, mins: h * 60 + min };
-      }
-      // Decimal de Excel (por si acaso)
-      const f = parseFloat(val);
-      if (!isNaN(f) && f < 1) {
-        const total = Math.round(f * 24 * 60);
-        const h = Math.floor(total / 60) % 24, min = total % 60;
-        return { str: `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`, mins: h * 60 + min };
+        return {
+          str: `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`,
+          mins: h * 60 + min
+        };
       }
       return { str: '—', mins: -1 };
     }
 
     VUELOS_DATA = [];
     raw.forEach(row => {
-      // La hoja tiene columna A vacía, datos desde B:
-      // col index: 0=A(vacía), 1=B(vacía), 2=C(#vuelo), 3=D(aerolínea)...
       const idx = parseInt(row[2]);
       if (!isNaN(idx) && idx >= 1 && idx <= 60) {
         const eta = parseHora(row[7]);
