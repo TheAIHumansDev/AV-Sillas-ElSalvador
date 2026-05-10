@@ -1819,7 +1819,6 @@ function parseExcel(file) {
     function parseHora(val) {
       if (!val || val === '') return { str: '—', mins: -1 };
       const s = String(val).trim();
-      // SheetJS cellDates:true entrega time como "HH:MM:SS" o "H:MM:SS"
       const m = s.match(/^(\d{1,2}):(\d{2})/);
       if (m) {
         const h = parseInt(m[1]), min = parseInt(m[2]);
@@ -1833,27 +1832,27 @@ function parseExcel(file) {
 
     VUELOS_DATA = [];
     raw.forEach(row => {
-      const idx = parseInt(row[2]);
+      const idx = parseInt(row[1]); // col[1] = # vuelo como string
       if (!isNaN(idx) && idx >= 1 && idx <= 60) {
-        const eta = parseHora(row[7]);
-        const etd = parseHora(row[16]);
+        const eta = parseHora(row[6]);  // col[6] = ETA "5:20"
+        const etd = parseHora(row[15]); // col[15] = ETD "7:30" o "PERNOCTA"
         VUELOS_DATA.push({
           num:       idx,
-          aerolinea: String(row[3] || '').replace(/\n/g,' ').trim(),
-          registro:  String(row[4] || '').trim(),
-          tipo:      String(row[5] || '').trim(),
-          origen:    String(row[6] || '').replace(/\n/g,' ').trim(),
+          aerolinea: String(row[2] || '').replace(/[\r\n]/g,' ').trim(),
+          registro:  String(row[3] || '').trim(),
+          tipo:      String(row[4] || '').trim(),
+          origen:    String(row[5] || '').replace(/[\r\n]/g,' ').trim(),
           etaStr:    eta.str,
           etaMins:   eta.mins,
-          vueloLleg: String(row[8] || '').trim(),
-          posicion:  String(row[10] || '').trim(),
-          sala:      String(row[11] || '').trim(),
-          vueloSal:  String(row[12] || '').trim(),
-          destino:   String(row[14] || '').replace(/\n/g,' ').trim(),
-          pax:       parseInt(row[15]) || 0,
+          vueloLleg: String(row[7] || '').trim(),
+          posicion:  String(row[9] || '').trim(),
+          sala:      String(row[10] || '').trim(),
+          vueloSal:  String(row[11] || '').trim(),
+          destino:   String(row[13] || '').replace(/[\r\n]/g,' ').trim(),
+          pax:       parseInt(row[14]) || 0,
           etdStr:    etd.str,
           etdMins:   etd.mins,
-          proposito: String(row[17] || '').trim(),
+          proposito: String(row[16] || '').trim(),
         });
       }
     });
@@ -1862,7 +1861,6 @@ function parseExcel(file) {
       alert('No se encontraron vuelos en el archivo. Verifica el formato.');
       return;
     }
-
     document.getElementById('vuelos-filename').textContent = `✓ ${file.name} · ${VUELOS_DATA.length} vuelos`;
     document.getElementById('vuelos-toolbar').style.display = 'flex';
     document.getElementById('vuelos-date').value = toISO(STATE.currentDate);
