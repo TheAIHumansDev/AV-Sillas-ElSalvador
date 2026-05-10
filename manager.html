@@ -561,10 +561,11 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <!-- ░░░ VISTA MENSUAL ░░░ -->
   <div class="view" id="view-mensual">
     <div class="toolbar">
-      <button class="btn btn-ghost" onclick="navMonth(-1)">← Mes anterior</button>
-      <span id="month-label" style="font-size:14px;font-weight:600;color:var(--txt2)"></span>
-      <button class="btn btn-ghost" onclick="navMonth(1)">Siguiente →</button>
-    </div>
+<button class="btn btn-ghost" onclick="navMonth(-1)">← Mes anterior</button>
+  <span id="month-label" style="font-size:14px;font-weight:600;color:var(--txt2)"></span>
+  <button class="btn btn-ghost" onclick="navMonth(1)">Siguiente →</button>
+  <button class="btn btn-accent" onclick="autoScheduleMonth()">⚡ Auto-Programar Mes</button>
+  <button class="btn btn-success" onclick="saveOfficialSchedule()" style="margin-left:auto">💾 Guardar como Oficial</button>    </div>
     <div id="month-day-headers" class="month-grid" style="margin-bottom:8px"></div>
     <div class="month-grid" id="month-container"></div>
   </div>
