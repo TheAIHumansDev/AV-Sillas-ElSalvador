@@ -1465,6 +1465,210 @@ function uid() { return Math.random().toString(36).slice(2) + Date.now().toStrin
 
 // Init simulator on load
 simUpdate();
+
+// ═══════════════════════════════════════════════════════════
+//  AUTO-PROGRAMAR MES COMPLETO
+// ═══════════════════════════════════════════════════════════
+function autoScheduleMonth() {
+  const base = STATE.currentMonth;
+  const y = base.getFullYear(), m = base.getMonth();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+
+  const existing = STATE.shifts.filter(s => {
+    const d = new Date(s.fecha);
+    return d.getFullYear() === y && d.getMonth() === m;
+  });
+
+  if (existing.length > 0 && !confirm(`Ya hay ${existing.length} turno(s) en este mes. ¿Reemplazar con programación automática?`)) return;
+
+  // Eliminar turnos del mes
+  STATE.shifts = STATE.shifts.filter(s => {
+    const d = new Date(s.fecha);
+    return !(d.getFullYear() === y && d.getMonth() === m);
+  });
+
+  const allEmps = [
+    ...STATE.users.supervisores.map(n => ({ name: n, rol: 'Supervisor' })),
+    ...STATE.users.coordinadores.map(n => ({ name: n, rol: 'Coordinador' })),
+    ...STATE.users.staff.map(n => ({ name: n, rol: 'Staff' })),
+  ];
+
+  const turnoDef = [
+    { nombre: 'Mañana', ini: '06:00', fin: '14:00' },
+    { nombre: 'Tarde',  ini: '14:00', fin: '22:00' },
+    { nombre: 'Noche',  ini: '22:00', fin: '06:00' },
+  ];
+
+  // Rotación equitativa: cada empleado rota por los 3 turnos a lo largo del mes
+  // y se le garantiza al menos 1 día libre por semana (máx 6 días seguidos)
+  const newShifts = [];
+  const empHorasSemana = {}; // rastrea horas por semana
+  allEmps.forEach(e => empHorasSemana[e.name] = {});
+
+  // Índice de turno rotativo por empleado
+  const empTurnoIdx = {};
+  allEmps.forEach((e, i) => { empTurnoIdx[e.name] = i % 3; }); // escalonado
+
+  // Rastrear días consecutivos trabajados
+  const empConsecutivo = {};
+  allEmps.forEach(e => { empConsecutivo[e.name] = 0; });
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${y}-${String(m + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const weekNum = Math.floor((d - 1) / 7);
+
+    // Asegurar mínimo 4 supervisores en el día
+    const supsHoy = [];
+
+    allEmps.forEach(emp => {
+      // Calcular horas esta semana
+      const semKey = `${y}-W${weekNum}`;
+      if (!empHorasSemana[emp.name][semKey]) empHorasSemana[emp.name][semKey] = 0;
+      const hrsAcum = empHorasSemana[emp.name][semKey];
+
+      // Descanso: si lleva 6 días consecutivos o ya tiene 48h esta semana, día libre
+      if (empConsecutivo[emp.name] >= 6 || hrsAcum >= RULES.hrsSemanales) {
+        empConsecutivo[emp.name] = 0;
+        return; // día libre
+      }
+
+      // Determinar turno rotativo
+      const tIdx = (empTurnoIdx[emp.name] + d - 1) % 3;
+      const turno = turnoDef[tIdx];
+
+      newShifts.push({
+        id: uid(),
+        fecha: dateStr,
+        empleado: emp.name,
+        rol: emp.rol,
+        turno: turno.nombre,
+        horaInicio: turno.ini,
+        horaFin: turno.fin,
+        notas: 'Auto-programado (mes)',
+      });
+
+      empHorasSemana[emp.name][semKey] += 8;
+      empConsecutivo[emp.name]++;
+
+      if (emp.rol === 'Supervisor') supsHoy.push(emp.name);
+    });
+
+    // Verificar que haya al menos 4 supervisores en el día
+    if (supsHoy.length < RULES.minSupXTurno) {
+      // Agregar supervisores faltantes forzosamente
+      const faltantes = RULES.minSupXTurno - supsHoy.length;
+      STATE.users.supervisores
+        .filter(n => !supsHoy.includes(n))
+        .slice(0, faltantes)
+        .forEach(n => {
+          const tIdx = (empTurnoIdx[n] + d - 1) % 3;
+          const turno = turnoDef[tIdx];
+          newShifts.push({
+            id: uid(),
+            fecha: dateStr,
+            empleado: n,
+            rol: 'Supervisor',
+            turno: turno.nombre,
+            horaInicio: turno.ini,
+            horaFin: turno.fin,
+            notas: 'Auto-programado (refuerzo supervisión)',
+          });
+        });
+    }
+  }
+
+  STATE.shifts.push(...newShifts);
+  saveShiftsLocal();
+  renderMensual();
+  alert(`✅ Mes programado: ${newShifts.length} turnos generados con rotación equitativa.`);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  GUARDAR HORARIO OFICIAL EN GOOGLE SHEETS
+// ═══════════════════════════════════════════════════════════
+function saveOfficialSchedule() {
+  const base = STATE.currentMonth;
+  const y = base.getFullYear(), m = base.getMonth();
+
+  const monthShifts = STATE.shifts.filter(s => {
+    const d = new Date(s.fecha);
+    return d.getFullYear() === y && d.getMonth() === m;
+  });
+
+  if (monthShifts.length === 0) {
+    alert('No hay turnos programados en este mes para guardar.');
+    return;
+  }
+
+  if (SCRIPT_URL === 'PEGAR_URL_DEL_APPS_SCRIPT_AQUI') {
+    alert('⚠️ Configura el SCRIPT_URL primero para poder guardar en Google Sheets.');
+    return;
+  }
+
+  if (!confirm(`¿Guardar ${monthShifts.length} turnos del mes como horario oficial en Google Sheets?`)) return;
+
+  // Mostrar indicador de progreso
+  const btn = document.querySelector('[onclick="saveOfficialSchedule()"]');
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '⏳ Guardando...';
+  btn.disabled = true;
+
+  let saved = 0;
+  let errors = 0;
+
+  // Guardar en lotes secuenciales para no saturar el Apps Script
+  function saveNext(index) {
+    if (index >= monthShifts.length) {
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+      if (errors === 0) {
+        alert(`✅ Horario oficial guardado: ${saved} turnos enviados a Google Sheets (hoja "Horarios").`);
+      } else {
+        alert(`⚠️ Se guardaron ${saved} turnos, pero ${errors} fallaron. Reintenta.`);
+      }
+      return;
+    }
+
+    const shift = monthShifts[index];
+    const cb = 'cbSave' + Date.now() + index;
+    const params = new URLSearchParams({
+      action: 'saveShift',
+      callback: cb,
+      id: shift.id,
+      fecha: shift.fecha,
+      empleado: shift.empleado,
+      rol: shift.rol,
+      turno: shift.turno,
+      horaInicio: shift.horaInicio,
+      horaFin: shift.horaFin,
+      notas: shift.notas || 'Horario oficial',
+    });
+
+    window[cb] = (res) => {
+      delete window[cb];
+      document.getElementById('jsonp-save-' + index)?.remove();
+      if (res && res.success) saved++;
+      else errors++;
+      // Actualizar botón con progreso
+      btn.innerHTML = `⏳ ${saved + errors}/${monthShifts.length}`;
+      setTimeout(() => saveNext(index + 1), 150); // pequeño delay entre llamadas
+    };
+
+    const s = document.createElement('script');
+    s.id = 'jsonp-save-' + index;
+    s.src = `${SCRIPT_URL}?${params.toString()}`;
+    s.onerror = () => {
+      errors++;
+      document.getElementById('jsonp-save-' + index)?.remove();
+      setTimeout(() => saveNext(index + 1), 150);
+    };
+    document.body.appendChild(s);
+  }
+
+  saveNext(0);
+}
+
+   
 </script>
 </body>
 </html>
