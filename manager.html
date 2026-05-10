@@ -839,8 +839,6 @@ const supsHoy = todayShifts.filter(s => s.rol === 'Supervisor').length;
 if (supsHoy < RULES.minSupXTurno) {
     c.innerHTML += `<div class="alert alert-warn">⚠️ Hoy solo hay <b>${supsHoy} supervisor${supsHoy !== 1 ? 'es' : ''}</b> asignados — se requieren mínimo ${RULES.minSupXTurno} por día</div>`;
 }
-   
-  });
 
   const total = STATE.users.supervisores.length + STATE.users.coordinadores.length + STATE.users.staff.length;
   if (total >= 156) {
