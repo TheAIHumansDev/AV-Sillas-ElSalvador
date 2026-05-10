@@ -506,6 +506,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <button class="tab" onclick="switchTab('mensual')">Mensual</button>
     <button class="tab" onclick="switchTab('personal')">Personal</button>
     <button class="tab" onclick="switchTab('simulador')">Simulador</button>
+     <button class="tab" onclick="switchTab('vuelos')">✈️ Vuelos</button>
   </div>
 
   <!-- ░░░ VISTA DIARIA ░░░ -->
@@ -644,6 +645,105 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
     </div>
   </div>
+
+<!-- ░░░ 649 NUEVO CÓDIGO - VISTA VUELOS ░░░ -->
+<div class="view" id="view-vuelos">
+  <div class="section-title">✈️ Programación por Vuelos</div>
+  <p style="color:var(--txt2);font-size:14px;margin-bottom:20px">
+    Sube el Excel de programación del día para generar automáticamente la distribución óptima de personal por vuelo.
+  </p>
+
+  <!-- Upload zone -->
+  <div id="upload-zone" style="
+    border:2px dashed rgba(245,158,11,0.3);border-radius:16px;
+    padding:48px;text-align:center;cursor:pointer;
+    background:rgba(245,158,11,0.03);transition:all .2s;margin-bottom:24px;
+  "
+    onclick="document.getElementById('excel-input').click()"
+    ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+    ondragleave="this.style.borderColor='rgba(245,158,11,0.3)'"
+    ondrop="handleExcelDrop(event)"
+  >
+    <div style="font-size:40px;margin-bottom:12px">📂</div>
+    <div style="font-size:16px;font-weight:600;color:var(--txt);margin-bottom:6px">
+      Arrastra el Excel aquí o haz clic para seleccionar
+    </div>
+    <div style="font-size:12px;color:var(--txt3);font-family:'JetBrains Mono'">
+      Formato: PROGRAMACIÓN_DD_MM_YYYY.xlsx · Columnas: ETA, Vuelo, PAX, Posición, Destino
+    </div>
+    <input type="file" id="excel-input" accept=".xlsx,.xls" style="display:none" onchange="handleExcelFile(this.files[0])">
+  </div>
+
+  <!-- Fecha para la distribución -->
+  <div class="toolbar" id="vuelos-toolbar" style="display:none">
+    <input type="date" id="vuelos-date">
+    <span id="vuelos-filename" style="font-size:12px;color:var(--accent);font-family:'JetBrains Mono'"></span>
+    <button class="btn btn-accent" onclick="generarDistribucion()">⚡ Generar Distribución</button>
+    <button class="btn btn-success" onclick="aplicarDistribucionAlHorario()" style="margin-left:auto">✅ Aplicar al Horario</button>
+    <button class="btn btn-ghost" onclick="resetVuelos()">🗑 Limpiar</button>
+  </div>
+
+  <!-- Resumen de vuelos cargados -->
+  <div id="vuelos-resumen" style="display:none">
+    <div class="stats-grid" id="vuelos-stats" style="margin-bottom:20px"></div>
+
+    <!-- Timeline visual de vuelos -->
+    <div class="section-title" style="font-size:16px;margin-bottom:12px">📊 Distribución horaria de vuelos</div>
+    <div style="background:var(--bg1);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:24px">
+      <div id="vuelos-timeline" style="position:relative;height:80px"></div>
+      <div style="display:flex;justify-content:space-between;margin-top:8px">
+        <span style="font-size:10px;color:var(--txt3);font-family:'JetBrains Mono'">00:00</span>
+        <span style="font-size:10px;color:var(--txt3);font-family:'JetBrains Mono'">06:00</span>
+        <span style="font-size:10px;color:var(--txt3);font-family:'JetBrains Mono'">12:00</span>
+        <span style="font-size:10px;color:var(--txt3);font-family:'JetBrains Mono'">18:00</span>
+        <span style="font-size:10px;color:var(--txt3);font-family:'JetBrains Mono'">24:00</span>
+      </div>
+    </div>
+
+    <!-- Tabla de distribución generada -->
+    <div id="distribucion-container" style="display:none">
+      <div class="section-title" style="font-size:16px;margin-bottom:12px">👥 Distribución óptima de personal</div>
+      <div id="alertas-distribucion" style="margin-bottom:16px"></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>#</th>
+            <th>Hora</th>
+            <th>Vuelo</th>
+            <th>Origen/Destino</th>
+            <th>PAX</th>
+            <th>Pos.</th>
+            <th>Supervisor</th>
+            <th>Líder/Coord.</th>
+            <th>Staff asignado</th>
+            <th>Total</th>
+            <th>Estado</th>
+          </tr></thead>
+          <tbody id="distribucion-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Lista cruda de vuelos -->
+    <div style="margin-top:24px">
+      <div class="section-title" style="font-size:16px;margin-bottom:12px">📋 Vuelos del día</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Aerolínea</th><th>Registro</th><th>Tipo</th>
+            <th>Origen</th><th>ETA</th><th>Vuelo Lleg.</th>
+            <th>Posición</th><th>Vuelo Sal.</th><th>Destino</th>
+            <th>PAX</th><th>ETD</th>
+          </tr></thead>
+          <tbody id="vuelos-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+   <!-- ░░░ FIN 745 NUEVO CÓDIGO - VISTA VUELOS ░░░ -->
+
 
 </main>
 
@@ -1414,7 +1514,7 @@ function deleteShift() {
 // ═══════════════════════════════════════════════════════════
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i) => {
-    const names = ['diario','semanal','mensual','personal','simulador'];
+    const names = ['diario','semanal','mensual','personal','simulador','vuelos'];
     t.classList.toggle('active', names[i] === name);
   });
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -1426,6 +1526,7 @@ function switchTab(name) {
     mensual: ['VISTA MENSUAL','Calendario de turnos'],
     personal: ['GESTIÓN DE PERSONAL','Horas y asignaciones'],
     simulador: ['SIMULADOR','Escenarios de operación'],
+    vuelos:    ['VUELOS DEL DÍA','Distribución óptima por vuelo'],
   };
   document.getElementById('view-title').textContent = titles[name][0];
   document.getElementById('view-sub').textContent = titles[name][1];
@@ -1666,6 +1767,414 @@ function saveOfficialSchedule() {
   }
 
   saveNext(0);
+}
+
+   // ═══════════════════════════════════════════════════════════
+//  MÓDULO DE VUELOS — Carga Excel y distribución de personal
+// ═══════════════════════════════════════════════════════════
+let VUELOS_DATA = [];
+
+// Convierte decimal de Excel a string "HH:MM"
+function excelTimeToStr(val) {
+  if (!val || isNaN(val)) return '—';
+  const totalMins = Math.round(parseFloat(val) * 24 * 60);
+  const h = Math.floor(totalMins / 60) % 24;
+  const m = totalMins % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+// Convierte decimal de Excel a minutos desde medianoche
+function excelTimeToMins(val) {
+  if (!val || isNaN(val)) return -1;
+  return Math.round(parseFloat(val) * 24 * 60);
+}
+
+function handleExcelDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').style.borderColor = 'rgba(245,158,11,0.3)';
+  const file = e.dataTransfer.files[0];
+  if (file) handleExcelFile(file);
+}
+
+function handleExcelFile(file) {
+  if (!file) return;
+  // Cargar SheetJS dinámicamente si no está disponible
+  if (typeof XLSX === 'undefined') {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = () => parseExcel(file);
+    document.head.appendChild(s);
+  } else {
+    parseExcel(file);
+  }
+}
+
+function parseExcel(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const wb = XLSX.read(e.target.result, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+    // Detectar filas de vuelos: buscar filas donde col[2] es número (índice del vuelo)
+    VUELOS_DATA = [];
+    raw.forEach(row => {
+      const idx = row[2];
+      if (typeof idx === 'number' && idx >= 1 && idx <= 60) {
+        VUELOS_DATA.push({
+          num:        idx,
+          aerolinea:  String(row[3] || '').trim(),
+          registro:   String(row[4] || '').trim(),
+          tipo:       String(row[5] || '').trim(),
+          origen:     String(row[6] || '').trim(),
+          etaDecimal: row[7],
+          etaStr:     excelTimeToStr(row[7]),
+          etaMins:    excelTimeToMins(row[7]),
+          vueloLleg:  String(row[8] || '').trim(),
+          posicion:   String(row[9] || '').trim(),
+          sala:       String(row[10] || '').trim(),
+          vueloSal:   String(row[12] || '').trim(),
+          destino:    String(row[13] || '').trim(),
+          pax:        parseInt(row[14]) || 0,
+          etdDecimal: row[15],
+          etdStr:     excelTimeToStr(row[15]),
+          etdMins:    excelTimeToMins(row[15]),
+          propósito:  String(row[16] || '').trim(),
+        });
+      }
+    });
+
+    if (VUELOS_DATA.length === 0) {
+      alert('No se encontraron vuelos en el archivo. Verifica el formato.');
+      return;
+    }
+
+    document.getElementById('vuelos-filename').textContent = `✓ ${file.name} · ${VUELOS_DATA.length} vuelos`;
+    document.getElementById('vuelos-toolbar').style.display = 'flex';
+    document.getElementById('vuelos-date').value = toISO(STATE.currentDate);
+    renderVuelosRaw();
+    renderVuelosStats();
+    renderVuelosTimeline();
+    document.getElementById('vuelos-resumen').style.display = 'block';
+    document.getElementById('distribucion-container').style.display = 'none';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function renderVuelosRaw() {
+  const tbody = document.getElementById('vuelos-tbody');
+  tbody.innerHTML = VUELOS_DATA.map(v => `
+    <tr>
+      <td style="font-family:'JetBrains Mono';color:var(--txt3)">${v.num}</td>
+      <td style="font-weight:600">${v.aerolinea}</td>
+      <td style="font-family:'JetBrains Mono';font-size:12px">${v.registro}</td>
+      <td><span class="chip chip-staff">${v.tipo}</span></td>
+      <td style="font-size:12px;color:var(--txt2)">${v.origen}</td>
+      <td style="font-family:'JetBrains Mono';color:var(--accent);font-weight:600">${v.etaStr}</td>
+      <td style="font-family:'JetBrains Mono'">${v.vueloLleg}</td>
+      <td style="text-align:center;font-weight:700">${v.posicion}</td>
+      <td style="font-family:'JetBrains Mono'">${v.vueloSal || '—'}</td>
+      <td style="font-size:12px;color:var(--txt2)">${v.destino || '—'}</td>
+      <td style="font-family:'JetBrains Mono';font-weight:700;color:${v.pax>150?'var(--danger)':v.pax>100?'var(--accent)':'var(--txt)'}">${v.pax || '—'}</td>
+      <td style="font-family:'JetBrains Mono';color:var(--accent2)">${v.etdStr}</td>
+    </tr>
+  `).join('');
+}
+
+function renderVuelosStats() {
+  const totalPax = VUELOS_DATA.reduce((a,v) => a + (v.pax||0), 0);
+  const vuelos = VUELOS_DATA.length;
+  const manana = VUELOS_DATA.filter(v => v.etaMins >= 360 && v.etaMins < 840).length;  // 06-14h
+  const tarde  = VUELOS_DATA.filter(v => v.etaMins >= 840 && v.etaMins < 1320).length; // 14-22h
+  const noche  = VUELOS_DATA.filter(v => v.etaMins >= 1320 || v.etaMins < 360).length; // 22-06h
+  const conPax = VUELOS_DATA.filter(v => v.pax > 0).length;
+
+  document.getElementById('vuelos-stats').innerHTML = `
+    <div class="stat-card" style="--accent-color:var(--accent3)">
+      <div class="stat-icon">✈️</div>
+      <div class="stat-val">${vuelos}</div>
+      <div class="stat-label">Vuelos totales</div>
+    </div>
+    <div class="stat-card" style="--accent-color:var(--turno-m)">
+      <div class="stat-icon">☀️</div>
+      <div class="stat-val">${manana}</div>
+      <div class="stat-label">Vuelos mañana</div>
+      <div class="stat-sub">06:00 – 14:00</div>
+    </div>
+    <div class="stat-card" style="--accent-color:var(--turno-t)">
+      <div class="stat-icon">🌤️</div>
+      <div class="stat-val">${tarde}</div>
+      <div class="stat-label">Vuelos tarde</div>
+      <div class="stat-sub">14:00 – 22:00</div>
+    </div>
+    <div class="stat-card" style="--accent-color:var(--turno-n)">
+      <div class="stat-icon">🌙</div>
+      <div class="stat-val">${noche}</div>
+      <div class="stat-label">Vuelos noche</div>
+      <div class="stat-sub">22:00 – 06:00</div>
+    </div>
+    <div class="stat-card" style="--accent-color:var(--accent2)">
+      <div class="stat-icon">👥</div>
+      <div class="stat-val">${totalPax.toLocaleString()}</div>
+      <div class="stat-label">PAX totales</div>
+      <div class="stat-sub">${conPax} vuelos con pasajeros</div>
+    </div>
+    <div class="stat-card" style="--accent-color:var(--accent)">
+      <div class="stat-icon">♿</div>
+      <div class="stat-val">${Math.ceil(totalPax * 0.08)}</div>
+      <div class="stat-label">Sillas est.</div>
+      <div class="stat-sub">~8% de PAX</div>
+    </div>
+  `;
+}
+
+function renderVuelosTimeline() {
+  const tl = document.getElementById('vuelos-timeline');
+  tl.innerHTML = '';
+  const W = tl.offsetWidth || 800;
+
+  VUELOS_DATA.forEach(v => {
+    if (v.etaMins < 0) return;
+    const pct = (v.etaMins / (24 * 60)) * 100;
+    const turno = v.etaMins >= 360 && v.etaMins < 840 ? 'var(--turno-m)'
+                : v.etaMins >= 840 && v.etaMins < 1320 ? 'var(--turno-t)'
+                : 'var(--turno-n)';
+    const dot = document.createElement('div');
+    dot.style.cssText = `
+      position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);
+      width:${v.pax > 150 ? 12 : v.pax > 80 ? 9 : 6}px;
+      height:${v.pax > 150 ? 12 : v.pax > 80 ? 9 : 6}px;
+      background:${turno};border-radius:50%;cursor:pointer;
+      transition:transform .2s;
+    `;
+    dot.title = `Vuelo ${v.vueloLleg} · ${v.etaStr} · ${v.origen} · ${v.pax||'—'} PAX`;
+    dot.onmouseenter = () => dot.style.transform = 'translate(-50%,-50%) scale(2)';
+    dot.onmouseleave = () => dot.style.transform = 'translate(-50%,-50%) scale(1)';
+    tl.appendChild(dot);
+  });
+
+  // Líneas de turno
+  [0.25, 0.5833, 0.9167].forEach((pct, i) => {
+    const line = document.createElement('div');
+    const labels = ['06:00','14:00','22:00'];
+    line.style.cssText = `
+      position:absolute;left:${pct*100}%;top:0;bottom:0;
+      width:1px;background:rgba(255,255,255,0.1);
+    `;
+    tl.appendChild(line);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ALGORITMO DE DISTRIBUCIÓN ÓPTIMA
+// ═══════════════════════════════════════════════════════════
+function generarDistribucion() {
+  if (VUELOS_DATA.length === 0) { alert('Primero carga un archivo Excel.'); return; }
+
+  const sups   = [...STATE.users.supervisores];
+  const coords = [...STATE.users.coordinadores];
+  const staff  = [...STATE.users.staff];
+
+  if (sups.length === 0 && coords.length === 0 && staff.length === 0) {
+    alert('No hay personal cargado en el sistema. Verifica la conexión con el Apps Script o usa datos demo.');
+    return;
+  }
+
+  // Ordenar vuelos por ETA
+  const vuelosOrdenados = [...VUELOS_DATA]
+    .filter(v => v.etaMins >= 0)
+    .sort((a, b) => a.etaMins - b.etaMins);
+
+  // Calcular personal necesario por vuelo según PAX y complejidad
+  // Regla: 1 staff por cada 15 PAX (mín 1), 1 líder por cada 3 staff, 1 supervisor por bloque de 4 vuelos simultáneos
+  const distribución = [];
+  const staffDisponiblePorSlot = {}; // rastrea quién está ocupado (por slot de 30 min)
+
+  // Función: slot de tiempo (cada 30 min)
+  const getSlot = (mins) => Math.floor(mins / 30);
+
+  // Rastrar ocupación por persona y slot
+  const ocupacion = {}; // nombre -> Set de slots ocupados
+  [...sups, ...coords, ...staff].forEach(n => { ocupacion[n] = new Set(); });
+
+  // Índices rotativos para asignación equitativa
+  let supIdx = 0, coordIdx = 0, staffGlobalIdx = 0;
+
+  vuelosOrdenados.forEach(vuelo => {
+    const pax = vuelo.pax || 30; // si no hay PAX, asumir 30
+    const tiempoServicio = 45;   // minutos estimados por servicio completo (llegada + salida)
+    const slotIni = getSlot(vuelo.etaMins);
+    const slotFin = getSlot(vuelo.etaMins + tiempoServicio);
+    const slots = [];
+    for (let s = slotIni; s <= slotFin; s++) slots.push(s);
+
+    // Calcular cuánto staff se necesita
+    const staffNecesario = Math.max(1, Math.ceil(pax / 15));
+    const lideresNecesarios = Math.max(1, Math.ceil(staffNecesario / 3));
+    const supNecesario = 1; // siempre 1 supervisor disponible para el bloque
+
+    // Asignar supervisor disponible (rotativo, que no esté ocupado)
+    let supAsignado = null;
+    for (let i = 0; i < sups.length; i++) {
+      const s = sups[(supIdx + i) % sups.length];
+      const libre = slots.every(sl => !ocupacion[s].has(sl));
+      if (libre) {
+        supAsignado = s;
+        slots.forEach(sl => ocupacion[s].add(sl));
+        supIdx = (sups.indexOf(s) + 1) % Math.max(sups.length, 1);
+        break;
+      }
+    }
+    // Si todos están ocupados, asignar el de menor carga
+    if (!supAsignado && sups.length > 0) {
+      supAsignado = sups.reduce((a, b) => ocupacion[a].size < ocupacion[b].size ? a : b);
+    }
+
+    // Asignar líderes/coordinadores
+    const lideresAsignados = [];
+    for (let i = 0; i < coords.length && lideresAsignados.length < lideresNecesarios; i++) {
+      const c = coords[(coordIdx + i) % coords.length];
+      const libre = slots.every(sl => !ocupacion[c].has(sl));
+      if (libre) {
+        lideresAsignados.push(c);
+        slots.forEach(sl => ocupacion[c].add(sl));
+        coordIdx = (coords.indexOf(c) + 1) % Math.max(coords.length, 1);
+      }
+    }
+    // Completar con coordinadores disponibles aunque tengan carga
+    if (lideresAsignados.length < lideresNecesarios && coords.length > 0) {
+      const faltantes = lideresNecesarios - lideresAsignados.length;
+      coords.filter(c => !lideresAsignados.includes(c))
+        .slice(0, faltantes)
+        .forEach(c => lideresAsignados.push(c));
+    }
+
+    // Asignar staff operativo
+    const staffAsignado = [];
+    for (let i = 0; i < staff.length && staffAsignado.length < staffNecesario; i++) {
+      const s = staff[(staffGlobalIdx + i) % staff.length];
+      const libre = slots.every(sl => !ocupacion[s].has(sl));
+      if (libre) {
+        staffAsignado.push(s);
+        slots.forEach(sl => ocupacion[s].add(sl));
+        staffGlobalIdx = (staff.indexOf(s) + 1) % Math.max(staff.length, 1);
+      }
+    }
+    // Completar si no hay suficiente libre
+    if (staffAsignado.length < staffNecesario && staff.length > 0) {
+      const faltantes = staffNecesario - staffAsignado.length;
+      staff.filter(s => !staffAsignado.includes(s))
+        .sort((a, b) => ocupacion[a].size - ocupacion[b].size)
+        .slice(0, faltantes)
+        .forEach(s => staffAsignado.push(s));
+    }
+
+    distribución.push({
+      vuelo,
+      supAsignado,
+      lideresAsignados,
+      staffAsignado,
+      staffNecesario,
+      lideresNecesarios,
+      totalPersonal: (supAsignado ? 1 : 0) + lideresAsignados.length + staffAsignado.length,
+      completo: !!supAsignado && lideresAsignados.length >= lideresNecesarios && staffAsignado.length >= staffNecesario,
+    });
+  });
+
+  // Renderizar tabla de distribución
+  const tbody = document.getElementById('distribucion-tbody');
+  tbody.innerHTML = distribución.map((d, i) => {
+    const v = d.vuelo;
+    const turnoColor = v.etaMins >= 360 && v.etaMins < 840 ? 'var(--turno-m)'
+                     : v.etaMins >= 840 && v.etaMins < 1320 ? 'var(--turno-t)'
+                     : 'var(--turno-n)';
+    const estadoBadge = d.completo
+      ? `<span class="chip chip-staff">✓ Cubierto</span>`
+      : `<span class="chip" style="background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.2)">⚠️ Déficit</span>`;
+
+    const staffList = d.staffAsignado.length > 0
+      ? d.staffAsignado.slice(0,3).join(', ') + (d.staffAsignado.length > 3 ? ` +${d.staffAsignado.length-3}` : '')
+      : '<span style="color:var(--danger)">Sin asignar</span>';
+
+    return `<tr>
+      <td style="font-family:'JetBrains Mono';color:var(--txt3)">${v.num}</td>
+      <td style="font-family:'JetBrains Mono';color:${turnoColor};font-weight:700">${v.etaStr}</td>
+      <td style="font-family:'JetBrains Mono'">${v.vueloLleg} ${v.vueloSal ? '/ '+v.vueloSal : ''}</td>
+      <td style="font-size:12px;color:var(--txt2)">${v.origen.split('(')[0].trim()} → ${v.destino.split('(')[0].trim() || 'SAL'}</td>
+      <td style="font-weight:700;color:${v.pax>150?'var(--danger)':v.pax>80?'var(--accent)':'var(--txt)'}">${v.pax||'—'}</td>
+      <td style="text-align:center;font-weight:700">${v.posicion}</td>
+      <td style="font-size:12px;color:var(--sup)">${d.supAsignado || '<span style="color:var(--danger)">⚠️ Ninguno</span>'}</td>
+      <td style="font-size:12px;color:var(--coord)">${d.lideresAsignados.join(', ') || '—'}</td>
+      <td style="font-size:11px;color:var(--txt2)">${staffList}</td>
+      <td style="font-family:'JetBrains Mono';font-weight:700">${d.totalPersonal}</td>
+      <td>${estadoBadge}</td>
+    </tr>`;
+  }).join('');
+
+  // Alertas de cobertura
+  const sinSup = distribución.filter(d => !d.supAsignado).length;
+  const sinStaff = distribución.filter(d => d.staffAsignado.length < d.staffNecesario).length;
+  const alertDiv = document.getElementById('alertas-distribucion');
+  alertDiv.innerHTML = '';
+  if (sinSup > 0)
+    alertDiv.innerHTML += `<div class="alert alert-err">⚠️ ${sinSup} vuelo(s) sin supervisor asignado — considera agregar supervisores al sistema</div>`;
+  if (sinStaff > 0)
+    alertDiv.innerHTML += `<div class="alert alert-warn">⚠️ ${sinStaff} vuelo(s) con staff insuficiente — se necesitan más operarios para la demanda del día</div>`;
+  if (sinSup === 0 && sinStaff === 0)
+    alertDiv.innerHTML = `<div class="alert alert-ok">✅ Cobertura completa: todos los ${distribución.length} vuelos tienen personal asignado</div>`;
+
+  document.getElementById('distribucion-container').style.display = 'block';
+  document.getElementById('distribucion-container').scrollIntoView({ behavior:'smooth', block:'start' });
+
+  // Guardar distribución para poder aplicarla
+  window._lastDistribucion = distribución;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  APLICAR DISTRIBUCIÓN AL HORARIO PRINCIPAL
+// ═══════════════════════════════════════════════════════════
+function aplicarDistribucionAlHorario() {
+  if (!window._lastDistribucion) { alert('Primero genera la distribución.'); return; }
+  const dateStr = document.getElementById('vuelos-date').value || toISO(STATE.currentDate);
+  if (!dateStr) { alert('Selecciona una fecha.'); return; }
+
+  const existing = STATE.shifts.filter(s => s.fecha === dateStr).length;
+  if (existing > 0 && !confirm(`Ya hay ${existing} turno(s) para ${dateStr}. ¿Agregar la distribución de vuelos encima?`)) return;
+
+  const newShifts = [];
+  window._lastDistribucion.forEach(d => {
+    const v = d.vuelo;
+    const turno = v.etaMins >= 360 && v.etaMins < 840 ? 'Mañana'
+                : v.etaMins >= 840 && v.etaMins < 1320 ? 'Tarde' : 'Noche';
+    const horaIni = v.etaStr;
+    const horaFin = excelTimeToStr((v.etaMins + 480) / (24*60)); // +8h turno
+
+    const agregar = (nombre, rol) => {
+      if (!nombre) return;
+      newShifts.push({ id: uid(), fecha: dateStr, empleado: nombre, rol, turno, horaInicio: horaIni, horaFin: horaFin, notas: `Vuelo ${v.vueloLleg} · Pos.${v.posicion} · ${v.pax||'—'} PAX` });
+    };
+
+    if (d.supAsignado) agregar(d.supAsignado, 'Supervisor');
+    d.lideresAsignados.forEach(l => agregar(l, 'Coordinador'));
+    d.staffAsignado.forEach(s => agregar(s, 'Staff'));
+  });
+
+  STATE.shifts.push(...newShifts);
+  saveShiftsLocal();
+  alert(`✅ ${newShifts.length} asignaciones aplicadas al horario del ${dateStr}.\nPuedes verlas en la Vista Diaria.`);
+  STATE.currentDate = new Date(dateStr + 'T12:00:00');
+  document.getElementById('date-picker').value = dateStr;
+  switchTab('diario');
+}
+
+function resetVuelos() {
+  VUELOS_DATA = [];
+  window._lastDistribucion = null;
+  document.getElementById('vuelos-resumen').style.display = 'none';
+  document.getElementById('vuelos-toolbar').style.display = 'none';
+  document.getElementById('vuelos-filename').textContent = '';
+  document.getElementById('distribucion-container').style.display = 'none';
+  document.getElementById('excel-input').value = '';
 }
 
    
