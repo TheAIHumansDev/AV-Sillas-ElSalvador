@@ -834,13 +834,12 @@ function checkAlerts() {
   c.innerHTML = '';
   const dateStr = toISO(STATE.currentDate);
   const todayShifts = STATE.shifts.filter(s => s.fecha === dateStr);
-  const turnos = ['Mañana','Tarde','Noche'];
-
-  turnos.forEach(t => {
-    const sups = todayShifts.filter(s => s.turno === t && s.rol === 'Supervisor').length;
-    if (sups < RULES.minSupXTurno) {
-      c.innerHTML += `<div class="alert alert-warn">⚠️ Turno <b>${t}</b>: solo ${sups} supervisores asignados — se requieren mínimo ${RULES.minSupXTurno}</div>`;
-    }
+  
+const supsHoy = todayShifts.filter(s => s.rol === 'Supervisor').length;
+if (supsHoy < RULES.minSupXTurno) {
+    c.innerHTML += `<div class="alert alert-warn">⚠️ Hoy solo hay <b>${supsHoy} supervisor${supsHoy !== 1 ? 'es' : ''}</b> asignados — se requieren mínimo ${RULES.minSupXTurno} por día</div>`;
+}
+   
   });
 
   const total = STATE.users.supervisores.length + STATE.users.coordinadores.length + STATE.users.staff.length;
