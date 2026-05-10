@@ -2013,15 +2013,20 @@ function generarDistribucion() {
   let supIdx = 0, coordIdx = 0, staffGlobalIdx = 0;
 
   vuelosOrdenados.forEach(vuelo => {
-    const pax = vuelo.pax || 30; // si no hay PAX, asumir 30
-    const tiempoServicio = 45;   // minutos estimados por servicio completo (llegada + salida)
-    const slotIni = getSlot(vuelo.etaMins);
-    const slotFin = getSlot(vuelo.etaMins + tiempoServicio);
-    const slots = [];
-    for (let s = slotIni; s <= slotFin; s++) slots.push(s);
+     
+// NUEVO 
 
-    // Calcular cuánto staff se necesita
-    const staffNecesario = Math.max(1, Math.ceil(pax / 15));
+const pax = vuelo.pax || 30;
+const sillasVuelo = Math.max(20, Math.ceil(pax * 0.20)); // mín 20, 20% de PAX
+const tiempoServicio = 45;
+const slotIni = getSlot(vuelo.etaMins);
+const slotFin = getSlot(vuelo.etaMins + tiempoServicio);
+const slots = [];
+for (let s = slotIni; s <= slotFin; s++) slots.push(s);
+const staffNecesario = Math.max(1, Math.ceil(sillasVuelo / 15));
+
+// NUEVO
+     
     const lideresNecesarios = Math.max(1, Math.ceil(staffNecesario / 3));
     const supNecesario = 1; // siempre 1 supervisor disponible para el bloque
 
