@@ -1,0 +1,232 @@
+// ============================================================
+// Apps Script — Reporte de Sillas · Gestión de Personal
+// Despliega como Web App (Ejecutar como: Yo, Acceso: Cualquiera)
+// ============================================================
+// INSTRUCCIONES DE INSTALACIÓN:
+// 1. Abrir Google Sheets con el listado de usuarios
+// 2. Ir a Extensiones → Apps Script
+// 3. Pegar este código (reemplazar todo)
+// 4. Guardar → Implementar → Nueva implementación
+// 5. Tipo: Aplicación web, Ejecutar como: Yo, Acceso: Cualquiera
+// 6. Copiar la URL generada y usarla en HT.html como SCRIPT_URL
+// ============================================================
+
+const SHEET_NAME_USERS = 'Personal';   // Nombre de la hoja con el listado A2:A173
+const SHEET_NAME_SHIFTS = 'Horarios';  // Hoja donde se guardarán los turnos (se crea automáticamente)
+const SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
+
+// ─── RANGOS SEGÚN BRIEF ───────────────────────────────────────
+// A2:A6   → Supervisores  (5)
+// A8:A17  → Coordinadores (10)
+// A18:A173 → Staff        (156)
+// ─────────────────────────────────────────────────────────────
+
+function doGet(e) {
+  const params = e.parameter;
+  const action = params.action || 'getUsers';
+  const callback = params.callback;
+
+  let result;
+
+  try {
+    switch (action) {
+      case 'getUsers':
+        result = getUsers();
+        break;
+      case 'getShifts':
+        result = getShifts(params.date);
+        break;
+      case 'saveShift':
+        result = saveShift(params);
+        break;
+      case 'deleteShift':
+        result = deleteShift(params.id);
+        break;
+      case 'getStats':
+        result = getStats(params.month, params.year);
+        break;
+      default:
+        result = { success: false, message: 'Acción no reconocida' };
+    }
+  } catch (err) {
+    result = { success: false, message: err.toString() };
+  }
+
+  const json = JSON.stringify(result);
+  const output = callback
+    ? ContentService.createTextOutput(`${callback}(${json})`)
+        .setMimeType(ContentService.MimeType.JAVASCRIPT)
+    : ContentService.createTextOutput(json)
+        .setMimeType(ContentService.MimeType.JSON);
+
+  return output;
+}
+
+// ── OBTENER USUARIOS DEL SPREADSHEET ──────────────────────────
+function getUsers() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAME_USERS);
+
+  if (!sheet) {
+    return { success: false, message: `Hoja "${SHEET_NAME_USERS}" no encontrada` };
+  }
+
+  // Supervisores: A2:A6
+  const supervisoresRange = sheet.getRange('A2:A6').getValues();
+  const supervisores = supervisoresRange
+    .map(r => r[0])
+    .filter(v => v && v.toString().trim() !== '');
+
+  // Coordinadores: A8:A17
+  const coordinadoresRange = sheet.getRange('A8:A17').getValues();
+  const coordinadores = coordinadoresRange
+    .map(r => r[0])
+    .filter(v => v && v.toString().trim() !== '');
+
+  // Staff: A18:A173
+  const staffRange = sheet.getRange('A18:A173').getValues();
+  const staff = staffRange
+    .map(r => r[0])
+    .filter(v => v && v.toString().trim() !== '');
+
+  return {
+    success: true,
+    supervisores: supervisores,
+    coordinadores: coordinadores,
+    staff: staff,
+    totales: {
+      supervisores: supervisores.length,
+      coordinadores: coordinadores.length,
+      staff: staff.length,
+      total: supervisores.length + coordinadores.length + staff.length
+    }
+  };
+}
+
+// ── OBTENER TURNOS ─────────────────────────────────────────────
+function getShifts(dateStr) {
+  ensureShiftsSheet();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAME_SHIFTS);
+  const data = sheet.getDataRange().getValues();
+
+  if (data.length <= 1) return { success: true, shifts: [] };
+
+  const headers = data[0];
+  const shifts = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const shift = {};
+    headers.forEach((h, idx) => { shift[h] = row[idx]; });
+
+    // Filtrar por fecha si se especificó
+    if (!dateStr || shift.fecha === dateStr) {
+      shifts.push(shift);
+    }
+  }
+
+  return { success: true, shifts: shifts };
+}
+
+// ── GUARDAR TURNO ──────────────────────────────────────────────
+function saveShift(params) {
+  ensureShiftsSheet();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAME_SHIFTS);
+
+  const id = params.id || Utilities.getUuid();
+  const now = new Date().toISOString();
+
+  // Si existe, actualizar; si no, agregar
+  const data = sheet.getDataRange().getValues();
+  let rowIndex = -1;
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === id) { rowIndex = i + 1; break; }
+  }
+
+  const rowData = [
+    id,
+    params.fecha || '',
+    params.empleado || '',
+    params.rol || '',
+    params.turno || '',
+    params.horaInicio || '',
+    params.horaFin || '',
+    params.notas || '',
+    now
+  ];
+
+  if (rowIndex > 0) {
+    sheet.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]);
+  } else {
+    sheet.appendRow(rowData);
+  }
+
+  return { success: true, id: id, message: 'Turno guardado correctamente' };
+}
+
+// ── ELIMINAR TURNO ─────────────────────────────────────────────
+function deleteShift(id) {
+  ensureShiftsSheet();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAME_SHIFTS);
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === id) {
+      sheet.deleteRow(i + 1);
+      return { success: true, message: 'Turno eliminado' };
+    }
+  }
+
+  return { success: false, message: 'Turno no encontrado' };
+}
+
+// ── ESTADÍSTICAS ───────────────────────────────────────────────
+function getStats(month, year) {
+  const shifts = getShifts(null).shifts;
+  const users = getUsers();
+
+  // Filtrar por mes/año si se especificó
+  const filtered = (month && year)
+    ? shifts.filter(s => {
+        const d = new Date(s.fecha);
+        return d.getMonth() + 1 == month && d.getFullYear() == year;
+      })
+    : shifts;
+
+  // Horas por empleado
+  const horasPorEmpleado = {};
+  filtered.forEach(s => {
+    if (!horasPorEmpleado[s.empleado]) horasPorEmpleado[s.empleado] = 0;
+    const ini = s.horaInicio ? parseInt(s.horaInicio.split(':')[0]) : 0;
+    const fin = s.horaFin ? parseInt(s.horaFin.split(':')[0]) : 0;
+    const horas = fin > ini ? fin - ini : (24 - ini + fin);
+    horasPorEmpleado[s.empleado] += horas;
+  });
+
+  return {
+    success: true,
+    totalTurnos: filtered.length,
+    horasPorEmpleado: horasPorEmpleado,
+    totalPersonal: users.totales
+  };
+}
+
+// ── HELPER: ASEGURAR HOJA DE HORARIOS ─────────────────────────
+function ensureShiftsSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAME_SHIFTS);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAME_SHIFTS);
+    const headers = ['id', 'fecha', 'empleado', 'rol', 'turno', 'horaInicio', 'horaFin', 'notas', 'updatedAt'];
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+
+  return sheet;
+}
